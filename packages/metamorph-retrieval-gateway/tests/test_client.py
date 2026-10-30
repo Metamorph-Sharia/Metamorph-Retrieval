@@ -13,7 +13,7 @@ from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_gateway.adapters.http import http_app
 from metamorph_retrieval_gateway.application.catalog import Catalog
 from metamorph_retrieval_gateway.application.gateway import Gateway
-from metamorph_retrieval_gateway.client import RetrievalClient
+from metamorph_retrieval_gateway.client import GATEWAY_TOKEN, GATEWAY_URL, RetrievalClient, from_environment
 
 
 def retrieval(*providers: object, **options: object) -> RetrievalClient:
@@ -43,3 +43,15 @@ def test_an_error_is_raised_as_its_type() -> None:
         retrieval().read(Ref.parse("doc:ojk:pojk:1999:1"))
     with pytest.raises(ProviderUnavailable, match="industries didn't answer"):
         retrieval(Industries(delay=0.5), timeout=0.05).call("industry_context", {})
+
+
+def test_a_token_from_the_environment_goes_with_every_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(GATEWAY_URL, "https://gateway.example")
+    monkeypatch.setenv(GATEWAY_TOKEN, "a-token")
+    assert from_environment().http.headers["authorization"] == "Bearer a-token"
+
+
+def test_without_a_token_no_authorization_is_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(GATEWAY_URL, "http://localhost:8765")
+    monkeypatch.delenv(GATEWAY_TOKEN, raising=False)
+    assert "authorization" not in from_environment().http.headers

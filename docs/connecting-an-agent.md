@@ -27,6 +27,35 @@ client = MultiServerMCPClient({"metamorph": {"url": "http://localhost:8765/mcp",
 agent = create_react_agent(model, await client.get_tools())
 ```
 
+### The development address on AWS
+
+**For development only.** A gateway runs on AWS against the deployed database, behind CloudFront. Every request needs a bearer token; without it, CloudFront answers 401 before anything reaches the gateway. When the agent loop moves into the VPC, this address is removed (`metamorph-retrieval-dev` stack, platform's `deploy/aws/dev/`).
+
+**The address and the token,** for anyone with the team's AWS access (`aws sso login` first). Keep the token out of git and chat logs; read it into your environment:
+
+```sh
+export AWS_REGION=ap-southeast-3
+export METAMORPH_RETRIEVAL_GATEWAY_URL=$(aws cloudformation describe-stacks --stack-name metamorph-retrieval-dev \
+    --query "Stacks[0].Outputs[?OutputKey=='Url'].OutputValue" --output text)
+export METAMORPH_RETRIEVAL_GATEWAY_TOKEN=$(aws ssm get-parameter --name /metamorph/retrieval/dev-token \
+    --with-decryption --query Parameter.Value --output text)
+curl -s -H "Authorization: Bearer $METAMORPH_RETRIEVAL_GATEWAY_TOKEN" "$METAMORPH_RETRIEVAL_GATEWAY_URL/manifest"
+```
+
+**The three ways to call it,** with the token:
+
+| Client | How |
+|---|---|
+| MCP | `$METAMORPH_RETRIEVAL_GATEWAY_URL/mcp`, with the header `Authorization: Bearer <token>`. In `langchain-mcp-adapters`: `{"url": f"{url}/mcp", "transport": "streamable_http", "headers": {"Authorization": f"Bearer {token}"}}` |
+| HTTP | The same routes as above, with the same header |
+| Python | `from_environment()` reads both variables. Or call `RetrievalClient.at(url, token=token)` |
+
+**What to expect:**
+- **Latency** is higher than on a laptop. The gateway runs on 2 Graviton vCPUs, and `search_documents` takes about 450 ms at p50 and 700 ms at p95. Lookups take a few milliseconds.
+- **The rate limit** is 1,000 requests per five minutes per IP address. Past it, requests get 403 for a while.
+- **Restarts are slow.** A restart downloads the embedding model, so the address can answer 502 or 503 for one to nine minutes.
+- **The data** is the platform's published data as deployed. It changes when it is republished, not as the sources do.
+
 ## The tools (catalog 0.1)
 
 | Tool | Use it for | Returns |

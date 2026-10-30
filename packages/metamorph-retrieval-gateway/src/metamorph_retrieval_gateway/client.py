@@ -3,6 +3,9 @@
     METAMORPH_RETRIEVAL_GATEWAY_URL=http://localhost:8765 \\
         uv run metamorph-eval run eval/market/cases.jsonl --provider metamorph_retrieval_gateway.client:from_environment
 
+METAMORPH_RETRIEVAL_GATEWAY_TOKEN, when set, goes with every request as a bearer token: the development address on
+AWS asks for one (docs/connecting-an-agent.md).
+
 Errors come back as the contract's types. An agent framework speaks MCP to /mcp instead; this is for Python code.
 """
 
@@ -24,6 +27,7 @@ from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest
 
 GATEWAY_URL = "METAMORPH_RETRIEVAL_GATEWAY_URL"
+GATEWAY_TOKEN = "METAMORPH_RETRIEVAL_GATEWAY_TOKEN"
 TIMEOUT = 30.0
 
 
@@ -32,8 +36,9 @@ class RetrievalClient:
         self.http = http
 
     @classmethod
-    def at(cls, url: str, *, timeout: float = TIMEOUT) -> RetrievalClient:
-        return cls(httpx.Client(base_url=url, timeout=timeout))
+    def at(cls, url: str, *, token: str | None = None, timeout: float = TIMEOUT) -> RetrievalClient:
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        return cls(httpx.Client(base_url=url, headers=headers, timeout=timeout))
 
     def manifest(self) -> Manifest:
         return codec.manifest_from_dict(self._answer("GET", "/manifest"))
@@ -71,4 +76,4 @@ def from_environment() -> RetrievalClient:
     url = os.environ.get(GATEWAY_URL)
     if not url:
         raise ValueError(f"set {GATEWAY_URL} to the gateway's address, e.g. http://localhost:8765")
-    return RetrievalClient.at(url)
+    return RetrievalClient.at(url, token=os.environ.get(GATEWAY_TOKEN))
