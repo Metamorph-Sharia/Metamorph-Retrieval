@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://metamorph.local/schemas/retrieval-eval-case-0.1.schema.json",
+  "title": "A retrieval evaluation case",
+  "description": "One line of a question set: a question, the tool call that should answer it, and the evidence it should return.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "phase", "question", "tool", "arguments", "expect", "basis"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "phase": {"enum": ["macro", "industry", "product", "compliance"], "description": "The customer journey's phase"},
+    "question": {"type": "string", "minLength": 1, "description": "As a user would ask it"},
+    "tool": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "The agent's tool, by its catalog name"},
+    "arguments": {"type": "object"},
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/ref"}},
+        "match": {
+          "enum": ["exact", "all", "any"],
+          "default": "all",
+          "description": "exact: the items returned are these and no others; all: each is in the first k; any: one is"
+        },
+        "k": {"type": "integer", "minimum": 1, "maximum": 25, "default": 8},
+        "names": {
+          "type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/ref"},
+          "description": "Refs the returned items must name in their fields, e.g. an industry's regulations"
+        },
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ref", "period", "value"],
+            "properties": {
+              "ref": {"$ref": "#/$defs/ref"},
+              "period": {"type": "string", "pattern": "^\\d{4}(-(\\d{2}|Q[1-4]|S[12]))?$"},
+              "value": {"type": "number"},
+              "provisional": {"type": "boolean"}
+            }
+          }
+        },
+        "error": {
+          "enum": ["unknown_ref", "unknown_tool", "invalid_argument", "capability_missing", "provider_unavailable"]
+        }
+      }
+    },
+    "basis": {"type": "string", "minLength": 1, "description": "Why these are the expected evidence: the query or reading behind it"}
+  },
+  "$defs": {
+    "ref": {"type": "string", "pattern": "^[a-z][a-z0-9_]*:[^\\s#]+(#[^\\s#]+)?$"}
+  }
+}

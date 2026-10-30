@@ -1,0 +1,849 @@
+{
+  "overall": {
+    "name": "all",
+    "cases": 54,
+    "passed": 32,
+    "recall": 0.5769230769230769,
+    "mrr": 0.5288461538461539
+  },
+  "by_tool": [
+    {
+      "name": "find_companies",
+      "cases": 9,
+      "passed": 9,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "find_series",
+      "cases": 9,
+      "passed": 7,
+      "recall": 0.7777777777777778,
+      "mrr": 0.5
+    },
+    {
+      "name": "follow_links",
+      "cases": 3,
+      "passed": 3,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "get_observations",
+      "cases": 7,
+      "passed": 7,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "industry_context",
+      "cases": 4,
+      "passed": 2,
+      "recall": 0.5,
+      "mrr": 0.5
+    },
+    {
+      "name": "read",
+      "cases": 3,
+      "passed": 3,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "search_documents",
+      "cases": 19,
+      "passed": 1,
+      "recall": 0.0,
+      "mrr": 0.0
+    }
+  ],
+  "by_phase": [
+    {
+      "name": "macro",
+      "cases": 12,
+      "passed": 9,
+      "recall": 0.75,
+      "mrr": 0.6041666666666666
+    },
+    {
+      "name": "industry",
+      "cases": 27,
+      "passed": 18,
+      "recall": 0.64,
+      "mrr": 0.61
+    },
+    {
+      "name": "product",
+      "cases": 1,
+      "passed": 0,
+      "recall": 0.0,
+      "mrr": 0.0
+    },
+    {
+      "name": "compliance",
+      "cases": 14,
+      "passed": 5,
+      "recall": 0.35714285714285715,
+      "mrr": 0.35714285714285715
+    }
+  ],
+  "cases": [
+    {
+      "id": "companies-licensed-sharia-p2p",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-21-d.05-2020",
+        "company:ojk:lpbbti:kep-123-d.05-2019",
+        "company:ojk:lpbbti:kep-10-d.05-2021",
+        "company:ojk:lpbbti:kep-32-d.05-2021",
+        "company:ojk:lpbbti:kep-104-d.05-2021",
+        "company:ojk:lpbbti:kep-90-d.05-2021",
+        "company:ojk:lpbbti:kep-80-d.05-2021"
+      ]
+    },
+    {
+      "id": "companies-left-sharia-p2p",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:s-600-nb.213-2019",
+        "company:ojk:lpbbti:s-67-nb.213-2019",
+        "company:ojk:lpbbti:s-609-nb.213-2019",
+        "company:ojk:lpbbti:s-441-nb.213-2019",
+        "company:ojk:lpbbti:s-289-nb.213-2019"
+      ]
+    },
+    {
+      "id": "companies-sharia-p2p-mid-2020",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-21-d.05-2020",
+        "company:ojk:lpbbti:kep-123-d.05-2019",
+        "company:ojk:lpbbti:s-600-nb.213-2019",
+        "company:ojk:lpbbti:kep-10-d.05-2021",
+        "company:ojk:lpbbti:s-67-nb.213-2019",
+        "company:ojk:lpbbti:kep-32-d.05-2021",
+        "company:ojk:lpbbti:kep-104-d.05-2021",
+        "company:ojk:lpbbti:s-609-nb.213-2019",
+        "company:ojk:lpbbti:s-441-nb.213-2019",
+        "company:ojk:lpbbti:kep-90-d.05-2021",
+        "company:ojk:lpbbti:kep-80-d.05-2021"
+      ]
+    },
+    {
+      "id": "companies-by-platform-name-alami",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-21-d.05-2020"
+      ]
+    },
+    {
+      "id": "companies-by-platform-name-danai",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-76-d.05-2021"
+      ]
+    },
+    {
+      "id": "companies-by-platform-name-koinp2p",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-125-d.05-2019"
+      ]
+    },
+    {
+      "id": "companies-by-legal-name-any-case",
+      "tool": "find_companies",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-10-d.05-2021"
+      ]
+    },
+    {
+      "id": "companies-investree-announcements",
+      "tool": "find_companies",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-45-d.05-2019"
+      ]
+    },
+    {
+      "id": "companies-dana-syariah-announcements",
+      "tool": "find_companies",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-10-d.05-2021"
+      ]
+    },
+    {
+      "id": "context-sharia-fintech-lending",
+      "tool": "industry_context",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "none in the first 1 of: industry:ojk:portal:layanan-pendanaan-bersama-berbasis-teknologi-informasi-lpbbti-syariah",
+        "doesn't name: register:ojk:lpbbti, doc:ojk:pojk:2024:40, doc:ojk:seojk:2025:19, report:ojk:roadmap:2023:lpbbti, report:ojk:lpksi:2025"
+      ],
+      "returned": []
+    },
+    {
+      "id": "context-sharia-commercial-banks",
+      "tool": "industry_context",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "industry:ojk:portal:bank-umum-syariah",
+        "industry:ojk:portal:bank-perekonomian-rakyat-bpr-syariah",
+        "industry:ojk:portal:layanan-pendanaan-bersama-berbasis-teknologi-informasi-lpbbti-syariah"
+      ]
+    },
+    {
+      "id": "context-sharia-rural-banks",
+      "tool": "industry_context",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "industry:ojk:portal:bank-perekonomian-rakyat-bpr-syariah",
+        "industry:ojk:portal:bank-umum-syariah",
+        "industry:ojk:portal:layanan-pendanaan-bersama-berbasis-teknologi-informasi-lpbbti-syariah"
+      ]
+    },
+    {
+      "id": "context-conventional-p2p-english",
+      "tool": "industry_context",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "none in the first 1 of: industry:ojk:portal:layanan-pendanaan-bersama-berbasis-teknologi-informasi-lpbbti-konvensional",
+        "doesn't name: doc:ojk:pojk:2024:40, doc:ojk:seojk:2025:19, report:ojk:roadmap:2023:lpbbti"
+      ],
+      "returned": []
+    },
+    {
+      "id": "figures-m2-mid-2026",
+      "tool": "get_observations",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel1_1:monthly:row=1"
+      ]
+    },
+    {
+      "id": "figures-inflation-september-2026",
+      "tool": "get_observations",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bps:table:2263:monthly:vervar=9999"
+      ]
+    },
+    {
+      "id": "figures-inflation-december-2025",
+      "tool": "get_observations",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bps:table:2263:monthly:vervar=9999"
+      ]
+    },
+    {
+      "id": "figures-bi-rate-september-2026",
+      "tool": "get_observations",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel9_8:monthly:row=15"
+      ]
+    },
+    {
+      "id": "figures-real-gdp-q2-2026",
+      "tool": "get_observations",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel7_2:quarterly:row=64"
+      ]
+    },
+    {
+      "id": "figures-active-sharia-p2p",
+      "tool": "get_observations",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:ojk:portal:lpbbti_syariah_profilentitas:jumlah-entitas"
+      ]
+    },
+    {
+      "id": "figures-sharia-commercial-banks-count",
+      "tool": "get_observations",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:ojk:portal:bu_syariah_profilentitas:jumlah-entitas:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_profilentitas:jumlah-entitas:kategori-bank=uus"
+      ]
+    },
+    {
+      "id": "series-broad-money",
+      "tool": "find_series",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel1_1:annual:row=1",
+        "series:bi:seki:tabel1_1:monthly:row=1",
+        "series:bi:seki:tabel1_1:annual:row=6",
+        "series:bi:seki:tabel1_1_1:annual:row=1",
+        "series:bi:seki:tabel1_1_1:monthly:row=1",
+        "series:bi:seki:tabel1_1_1:annual:row=7",
+        "series:bi:seki:tabel1_2:annual:row=38",
+        "series:bi:seki:tabel1_2:monthly:row=38"
+      ]
+    },
+    {
+      "id": "series-inflation",
+      "tool": "find_series",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:bps:table:2263:monthly:vervar=9999",
+        "series:bps:table:2249:monthly:vervar=151",
+        "series:bps:table:2254:monthly:vervar=151:turvar=1570",
+        "series:bps:table:2255:monthly:vervar=151:turvar=1575",
+        "series:bps:table:2258:monthly:vervar=151:turvar=1592",
+        "series:bps:table:2258:monthly:vervar=151:turvar=1594",
+        "series:bps:table:2258:monthly:vervar=151:turvar=1595",
+        "series:bps:table:2250:monthly:vervar=151:turvar=1552"
+      ]
+    },
+    {
+      "id": "series-policy-rate",
+      "tool": "find_series",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel9_8:annual:row=15",
+        "series:bi:seki:tabel9_8:monthly:row=15",
+        "series:bi:seki:tabel9_8:annual:row=11",
+        "series:bi:seki:tabel1_25_1:annual:row=69",
+        "series:bi:seki:tabel1_25_1:monthly:row=69",
+        "series:bi:seki:tabel1_25_1:annual:row=59",
+        "series:bi:seki:tabel1_30:annual:row=1",
+        "series:bi:seki:tabel1_30:annual:row=5"
+      ]
+    },
+    {
+      "id": "series-real-gdp",
+      "tool": "find_series",
+      "phase": "macro",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "problems": [],
+      "returned": [
+        "series:bi:seki:tabel7_4:annual:row=12",
+        "series:bi:seki:tabel7_4:quarterly:row=12",
+        "series:bi:seki:tabel7_2:annual:row=64",
+        "series:bi:seki:tabel7_2:quarterly:row=64",
+        "series:bi:seki:tabel7_2:annual:row=36",
+        "series:bi:seki:tabel7_4:annual:row=1",
+        "series:bps:table:652:annual:vervar=1100",
+        "series:bps:table:652:annual:vervar=1400"
+      ]
+    },
+    {
+      "id": "series-active-sharia-p2p",
+      "tool": "find_series",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:ojk:portal:lpbbti_syariah_profilentitas:jumlah-entitas",
+        "series:ojk:portal:lpbbti_profilentitas:jumlah-entitas",
+        "series:ojk:portal:bu_syariah_profilentitas:jumlah-entitas:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_profilentitas:jumlah-entitas:kategori-bank=uus",
+        "series:ojk:portal:bprs_profil-entitas:jumlah-entitas:dati1=provinsi-aceh",
+        "series:ojk:portal:bprs_profil-entitas:jumlah-entitas:dati1=provinsi-bali",
+        "series:ojk:portal:bprs_profil-entitas:jumlah-entitas:dati1=provinsi-banten",
+        "series:ojk:portal:bprs_info-kantor-cabang-dan-perwakilan:jumlah-kantor:dati1=provinsi-aceh"
+      ]
+    },
+    {
+      "id": "series-sharia-p2p-outstanding",
+      "tool": "find_series",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "problems": [],
+      "returned": [
+        "series:ojk:portal:lpbbti_syariah_infokontrakusahadanrekening_kualitasperdati:jumlah-outstanding:kualitas-pembiayaan=690801030000",
+        "series:ojk:portal:lpbbti_syariah_infokontrakusahadanrekening_kualitasperdati:jumlah-outstanding:kualitas-pembiayaan=690804030000",
+        "series:ojk:portal:lpbbti_syariah_infokontrakusahadanrekening_kualitasperdati:jumlah-outstanding:kualitas-pembiayaan=690805030000",
+        "series:ojk:portal:lpbbti_syariah_infokontrakusahadanrekening_jenisindustri:jumlah-outstanding:jenis-industri=290702010000",
+        "series:ojk:portal:lpbbti_syariah_infokontrakusahadanrekening_jenisindustri:jumlah-outstanding:jenis-industri=290702020000",
+        "series:ojk:portal:lpbbti_syariah_penerimapinjaman_jeniskelamindankualitas:outstanding:kualitas-pembiayaan=690801030000",
+        "series:ojk:portal:lpbbti_syariah_penerimapinjaman_jeniskelamindankualitas:outstanding:kualitas-pembiayaan=690804030000",
+        "series:ojk:portal:lpbbti_syariah_penerimapinjaman_jeniskelamindankualitas:outstanding:kualitas-pembiayaan=690805030000"
+      ]
+    },
+    {
+      "id": "series-sharia-bank-assets",
+      "tool": "find_series",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "series:ojk:portal:bu_syariah_totalaset:total-aset:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_totalaset:total-aset:kategori-bank=uus",
+        "series:ojk:portal:bu_syariah_totalasetgross:total-aset-gross:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_totalasetgross:total-aset-gross:kategori-bank=uus",
+        "series:ojk:portal:bu_syariah_totalasetproduktif:total-aset-produktif:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_totalasetproduktif:total-aset-produktif:kategori-bank=uus",
+        "series:ojk:portal:bu_syariah_suratberhargaygdimiliki:total-surat-berharga-yang-dimiliki:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_suratberhargaygdimiliki:total-surat-berharga-yang-dimiliki:kategori-bank=uus"
+      ]
+    },
+    {
+      "id": "series-sharia-bank-assets-english",
+      "tool": "find_series",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "none in the first 8 of: series:ojk:portal:bu_syariah_totalaset:total-aset:kategori-bank=bus"
+      ],
+      "returned": [
+        "series:ojk:portal:bu_syariah_totalasetgross:total-aset-gross:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_totalasetgross:total-aset-gross:kategori-bank=uus",
+        "series:bi:seki:tabel1_21:annual:row=55",
+        "series:bi:seki:tabel1_21:monthly:row=55",
+        "series:bi:seki:tabel1_16:annual:row=2",
+        "series:bi:seki:tabel1_16:annual:row=25",
+        "series:bi:seki:tabel1_16:monthly:row=2",
+        "series:bi:seki:tabel1_20:annual:row=10"
+      ]
+    },
+    {
+      "id": "series-sharia-third-party-funds",
+      "tool": "find_series",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "none in the first 8 of: series:ojk:portal:bu_syariah_danapihakketiga:total-dpk:kategori-bank=bus, series:ojk:portal:bu_syariah_danapihakketiga:total-dpk:kategori-bank=uus"
+      ],
+      "returned": [
+        "series:ojk:portal:bprs_laporan-laba-rugi:angka-akun:coa=15221-beban-bunga-imbal-hasil-atas-dana-pihak-ketiga-bukan-bank-tabungan-berdasarkan-prinsip-syariah-profit-sharing",
+        "series:ojk:portal:bprs_laporan-laba-rugi:angka-akun:coa=15222-beban-bunga-imbal-hasil-atas-dana-pihak-ketiga-bukan-bank-deposito-berdasarkan-prinsip-syariah-profit-sharing",
+        "series:ojk:portal:bprs_laporan-laba-rugi:angka-akun:coa=15224-beban-bunga-imbal-hasil-atas-dana-pihak-ketiga-bukan-bank-lainnya-berdasarkan-prinsip-syariah-profit-sharing",
+        "series:ojk:portal:bprs_dana-pihak-ketiga:total-dana:dati1=provinsi-aceh",
+        "series:ojk:portal:bprs_dana-pihak-ketiga:total-dana:dati1=provinsi-bali",
+        "series:ojk:portal:bprs_dana-pihak-ketiga:total-dana:dati1=provinsi-banten",
+        "series:ojk:portal:bu_syariah_danapihakketiga:total-deposito:kategori-bank=bus",
+        "series:ojk:portal:bu_syariah_danapihakketiga:total-deposito:kategori-bank=uus"
+      ]
+    },
+    {
+      "id": "search-roadmap-financing-targets",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-roadmap-minimum-equity",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-roadmap-end-state",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-roadmap-english",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-roadmap-within-twp90",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-rp3si-pillars",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-uus-spin-off",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-sharia-assets-2025",
+      "tool": "search_documents",
+      "phase": "macro",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-halal-ecosystem",
+      "tool": "search_documents",
+      "phase": "product",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-investree-revocation",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-investree-revocation-english",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-dsi-lender-meetings",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-dsi-bareskrim",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-p2p-interest-cap",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-illegal-lending-task-force",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-sharia-literacy-latest",
+      "tool": "search_documents",
+      "phase": "macro",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-sharia-literacy-2024",
+      "tool": "search_documents",
+      "phase": "macro",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "search-nine-pvml-rules",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "raised capability_missing: market: search over reports and releases arrives with its index; until then, find_companies, find_series and industry_context, or read a ref"
+      ],
+      "returned": []
+    },
+    {
+      "id": "links-named-by-pojk-40-2024",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2026:rdkb-september-2026#p-26",
+        "release:ojk:siaran-pers:2026:langkah-pengawasan-ojk-terhadap-pt-lunaria-annua-teknologi-koinp2p#p-2",
+        "release:ojk:siaran-pers:2026:rdkb-des-2025#p-26",
+        "release:ojk:siaran-pers:2025:rdkb-agustus-2025#p-24",
+        "release:ojk:siaran-pers:2025:langkah-pengawasan-ojk-terhadap-pt-akseleran-keuangan-inklusif-indonesia-dan-industri-pindar#p-2",
+        "release:ojk:siaran-pers:2025:ojk-perkuat-regulasi-sektor-pvml#p-1",
+        "release:ojk:siaran-pers:2025:ojk-terbitkan-sembilan-aturan-dalam-rangka-pengembangan-dan-penguatan-bidang-lembaga-pvml#p-1",
+        "release:ojk:siaran-pers:2025:ojk-terbitkan-sembilan-aturan-dalam-rangka-pengembangan-dan-penguatan-bidang-lembaga-pvml#p-2",
+        "release:ojk:siaran-pers:2025:rdkb-desember-2024#p-18",
+        "report:ojk:lpksi:2024#p-84"
+      ]
+    },
+    {
+      "id": "links-named-by-investree",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2026:rdkb-feb-2026#p-27",
+        "release:ojk:siaran-pers:2026:penyerahan-tersangka-tindak-pidana-sektor-jasa-keuangan-pt-investree-radhika-jaya#p-1",
+        "release:ojk:siaran-pers:2025:rdkb-september-2025#p-25",
+        "release:ojk:siaran-pers:2025:pemulangan-dan-penangkapan-tersangka-dpo-kasus-investree#p-1",
+        "release:ojk:siaran-pers:2025:red-notice-adrian-gunadi-investree#p-1",
+        "release:ojk:siaran-pers:2025:penegakan-hukum-sdr-aag-pt-irj#p-1",
+        "release:ojk:siaran-pers:2025:ojk-fokus-penguatan-pengawasan-dan-penyelesaian-permasalahan-di-industri-pindar#p-2",
+        "release:ojk:siaran-pers:2024:ojk-cabut-izin-usaha-pt-investree-radhika-jaya#p-1",
+        "release:ojk:siaran-pers:2024:ojk-terus-pantau-perkembangan-investree#p-1"
+      ]
+    },
+    {
+      "id": "links-revocation-names",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-45-d.05-2019",
+        "doc:ojk:pojk:2022:10"
+      ]
+    },
+    {
+      "id": "read-roadmap-passage",
+      "tool": "read",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "report:ojk:roadmap:2023:lpbbti#p-43"
+      ]
+    },
+    {
+      "id": "read-company",
+      "tool": "read",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-21-d.05-2020"
+      ]
+    },
+    {
+      "id": "read-unknown-ref",
+      "tool": "read",
+      "phase": "industry",
+      "passed": true,
+      "recall": null,
+      "reciprocal_rank": null,
+      "problems": [],
+      "returned": []
+    },
+    {
+      "id": "search-limit-over-maximum",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": null,
+      "reciprocal_rank": null,
+      "problems": [],
+      "returned": []
+    }
+  ],
+  "unheld": []
+}
