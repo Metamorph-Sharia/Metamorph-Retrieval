@@ -71,4 +71,3 @@ Send W3C trace context and each call joins your trace: `_meta.traceparent` over 
 - **`search_documents` searches reports and releases only** (since M4). Regulations and fatwas join it with the regulatory provider.
 - **Regulations can be read and cited, not searched,** until Friend 2's provider joins (M5). Reach them through `industry_context`, a record's `governed_by`, or `follow_links`.
 - **Links are `names` only** (which passages name what). Amends, revokes and implements arrive with the regulatory provider.
-- **Some OJK regulations carry a wrong citation in the platform's data** (66 documents, e.g. `doc:ojk:pojk:2024:40` cited as "POJK 10/POJK.05/2022"). The ref is right; the citation text is wrong at the source, and the platform has to fix it (reported 2026-10-30).
