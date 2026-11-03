@@ -223,3 +223,20 @@ def test_an_unknown_tool_lists_the_real_one() -> None:
 def test_links_are_capability_missing() -> None:
     with pytest.raises(CapabilityMissing):
         provider().links(Ref.parse(f"doc:{DOC}#pasal-137/ayat-3"), LinksRequest())
+
+
+def test_a_long_unit_is_shown_in_part_in_a_hit_and_whole_when_read() -> None:
+    from dataclasses import replace
+
+    from metamorph_regulation_retrieval.adapters.provider import HIT_CHARS, SHORTENED
+
+    long = replace(PASSAGES[0], text="Ketentuan pendanaan. " * 1000)
+    store = FakeStore()
+    store._kept = lambda filters: [long]  # noqa: SLF001 - one long unit
+    store.read = lambda document_id, address: long
+    regulation = provider(store)
+
+    hit = regulation.search(SearchRequest("pendanaan")).items[0]
+    assert len(hit.evidence.body.wording) <= HIT_CHARS + 1 and hit.evidence.body.wording.endswith("…")
+    assert regulation.search(SearchRequest("pendanaan")).warnings == (SHORTENED,)
+    assert regulation.read(hit.evidence.ref).body.wording == long.text

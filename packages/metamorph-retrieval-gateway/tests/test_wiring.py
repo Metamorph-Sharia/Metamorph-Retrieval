@@ -81,3 +81,6 @@ def test_the_gateway_as_serve_builds_it_can_be_evaluated_in_process(monkeypatch)
     gateway = gateway_from_environment()
 
     assert sorted(gateway.providers) == ["industries", "regulation"] and gateway.reranker is None
+    assert gateway.candidates == 50
+    monkeypatch.setenv("METAMORPH_RETRIEVAL_RERANK_CANDIDATES", "25")
+    assert gateway_from_environment().candidates == 25

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from functools import lru_cache
 from typing import Protocol
 
 MODEL = "BAAI/bge-m3"
@@ -21,19 +22,23 @@ class Embedder(Protocol):
     def encode(self, text: str) -> Sequence[float]: ...
 
 
-class SentenceTransformerEmbedder:
-    """Lazy: the model loads on the first question, not at import."""
+QUERY_CACHE = 1024  # questions embedded once: a gateway asks a provider for several pages of one question
 
-    def __init__(self, model_id: str = MODEL, max_seq_len: int = MAX_SEQ_LEN) -> None:
+
+class SentenceTransformerEmbedder:
+    """Lazy: the model loads on the first question, not at import. Questions are cached in process."""
+
+    def __init__(self, model_id: str = MODEL, max_seq_len: int = MAX_SEQ_LEN, *, model=None) -> None:
         self.model_id = model_id
         self.max_seq_len = max_seq_len
-        self._model = None
+        self._model = model
+        self.encode = lru_cache(maxsize=QUERY_CACHE)(self._encode)
 
-    def encode(self, text: str) -> Sequence[float]:
+    def _encode(self, text: str) -> tuple[float, ...]:
         if self._model is None:
             self._model = _load(self.model_id, self.max_seq_len)
         vector = self._model.encode([text], normalize_embeddings=True, show_progress_bar=False)
-        return vector[0]
+        return tuple(float(value) for value in vector[0])
 
 
 def _load(model_id: str, max_seq_len: int):

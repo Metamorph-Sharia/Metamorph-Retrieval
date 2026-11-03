@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
 from metamorph_regulation_retrieval.domain.citations import parse_citation
@@ -23,6 +24,7 @@ from metamorph_regulation_retrieval.domain.evidence import (
 from metamorph_regulation_retrieval.domain.filters import Filters
 from metamorph_regulation_retrieval.domain.fusion import reciprocal_rank_fusion
 from metamorph_regulation_retrieval.domain.legal import legal_force_of, provision_label
+from metamorph_regulation_retrieval.domain.passage import Passage
 from metamorph_regulation_retrieval.domain.refs import RefError
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import (
@@ -45,6 +47,10 @@ DEFAULT_INDEX_VERSION = "regulation-index"
 FIND = "find_provision"
 KINDS = ("law", "regulation", "implementing_rule", "fatwa", "guideline", "circular", "explanatory")
 MAX_DEPTH = 50  # how far down the fused ranking a cursor can page
+# A hit shows at most this much of its unit, about a market passage's length, so a page of long units (an SEOJK part,
+# a fatwa's decision) stays within what one call may return; `read` gives the whole.
+HIT_CHARS = 3_000
+SHORTENED = f"a hit ending in … shows the first {HIT_CHARS:,} characters of a long unit; read its ref for the whole"
 CANDIDATES = MAX_DEPTH  # each ranking's candidates for fusion
 WORDS, SEMANTIC = "words", "semantic"
 NO_WORDS = "matched by meaning only: this index predates word search; rebuild it to match words too"
@@ -122,11 +128,14 @@ class RegulationProvider:
 
         found_by = {key: [name for name, keys in ((WORDS, words_keys), (SEMANTIC, meaning_keys)) if key in keys]
                     for key, _ in chosen}
+        shown = {key: _shortened(passages[key]) for key, _ in chosen}
         items = [
-            hit(passages[key], rank=rank, score=score, provider=self.name, index_version=self.index_version,
+            hit(shown[key], rank=rank, score=score, provider=self.name, index_version=self.index_version,
                 matched_by=found_by[key])
             for rank, (key, score) in enumerate(chosen, start=start + 1)
         ]
+        if any(shown[key] is not passages[key] for key, _ in chosen):
+            warnings.append(SHORTENED)
         following = depth if depth < min(len(fused), MAX_DEPTH) else None
         return codec.hits_from_dict(page(items, warnings=tuple(warnings), cursor=following))
 
@@ -214,6 +223,13 @@ def _filters(request: SearchRequest) -> tuple[Filters | None, list[str]]:
         return None, warnings
     documents = tuple(ref.id for ref in request.documents)
     return Filters(kinds, frozenset(request.issuers), documents, request.in_force_on), warnings
+
+
+def _shortened(passage: Passage) -> Passage:
+    """The passage, its wording cut at a word to HIT_CHARS when it is longer."""
+    if len(passage.text) <= HIT_CHARS:
+        return passage
+    return replace(passage, text=passage.text[:HIT_CHARS].rsplit(" ", 1)[0] + "…")
 
 
 def _offset(cursor: str | None) -> int:
