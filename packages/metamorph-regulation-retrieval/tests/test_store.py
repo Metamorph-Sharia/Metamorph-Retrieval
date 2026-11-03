@@ -161,3 +161,28 @@ def test_the_search_uses_the_graph_the_build_makes(store: PostgresStore) -> None
             "EXPLAIN " + query, {"vector": str(QUESTION), "depth": 50, "limit": 10}))
 
     assert f"{TABLES['embed_table']}_hnsw" in plan
+
+
+def test_the_sessions_keep_the_urls_own_options() -> None:
+    from metamorph_regulation_retrieval.store import session_options
+
+    url = "postgresql://reader@db/metamorph?options=-c%20search_path%3Dretrieval_regulation,public"
+    assert session_options(url, READ_ONLY, {}) == f"-c search_path=retrieval_regulation,public {READ_ONLY}"
+    assert session_options("postgresql://reader@db/metamorph", READ_ONLY, {}) == READ_ONLY
+    schema = {"PGOPTIONS": "-c search_path=retrieval_regulation,public"}
+    assert session_options("postgresql://reader@db/metamorph", READ_ONLY, schema) == (
+        f"-c search_path=retrieval_regulation,public {READ_ONLY}")
+
+
+def test_an_index_in_its_own_schema_is_found_through_the_urls_search_path(store: PostgresStore) -> None:
+    with psycopg.connect(store.url, autocommit=True) as connection:
+        connection.execute("CREATE SCHEMA IF NOT EXISTS retrieval_regulation")
+        for table in TABLES.values():
+            connection.execute(f"CREATE TABLE IF NOT EXISTS retrieval_regulation.{table} AS SELECT * FROM {table}")
+        connection.execute(f"CREATE TABLE IF NOT EXISTS retrieval_regulation.{stems_table(TABLES['chunk_table'])} AS "
+                           f"SELECT * FROM {stems_table(TABLES['chunk_table'])}")
+    url = psycopg.conninfo.make_conninfo(store.url, options="-c search_path=retrieval_regulation,public")
+    schema = PostgresStore(url, dimension=DIMENSION, options=READ_ONLY, **TABLES)
+
+    assert schema.matches_words() and schema.dates_revocations()
+    assert [p.address for p, _ in schema.by_words("denda sosial", 5)] == ["diktum-kedua"]

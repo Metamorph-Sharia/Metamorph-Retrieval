@@ -50,7 +50,7 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
   - eight questions with no regulatory evidence: four that should be refused (nothing on the platform answers them, one of them naming a Permenaker the platform doesn't publish), three market questions;
   - GOLDEN-013, whose fatwa (8/2000) has no decision wording on the platform.
 - **Every expected clause was in force on its question's date,** so `in_force_on` excludes none.
-- **Five refs are in UU 27/2022 (personal data protection),** which the regulation index leaves out by default (`METAMORPH_REGULATION_EXCLUDED`). Those cases fail until it is indexed. Whether to index it is a product decision.
+- **Five refs are in UU 27/2022 (personal data protection),** which the index left out until 2026-11-03. The runs before that date can't find them.
 
 ## Runs
 
@@ -68,6 +68,7 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 | [The provider as merged](regulation/runs/2026-11-03-as-merged.md): every provision searched, by meaning only | 6 of 42 | 0.15 | 0.09 | An article and its paragraphs, and an item and its paragraph, compete for the same places |
 | [Retrieval units only, by words and meaning fused](regulation/runs/2026-11-03-units-words.md) | 12 of 42 | 0.31 | 0.12 | What the index builds now |
 | [Through the gateway, market and regulation fused](regulation/runs/2026-11-03-gateway.md) | 9 of 42 | 0.21 | 0.05 | A search of every kind: market passages take some of the 8 places |
+| [Through the gateway, fused and reranked](regulation/runs/2026-11-03-gateway-reranked.md) | 15 of 42 | 0.38 | 0.34 | The gateway's reranker (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, 50 candidates, 256 tokens) reads each candidate against the question, on one scale across providers. What runs on AWS |
 
 **How each change counted,** on the same vectors (2026-11-03):
 
@@ -78,11 +79,11 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 
 - **Words help only over units.** Over every provision they add articles and items to the crowd.
 - **The word search's stop words are the corpus's own.** The `indonesian` configuration keeps every word, so stems in more than 5% of units (177 of them: yang and dan, but also pasal, ayat, wajib) don't pick candidates. Without that, a question took 4 s and over every provision timed out; with it, under 1 s. They still count once a unit is a candidate. Dropping them altogether cost a case (11 of 42).
-- **A cross-encoder reranker** (bge-reranker-v2-m3 over the first 50 fused hits, 256 tokens) found 21 of 54 refs instead of 15 and passed 17 cases instead of 12. It took 2.4 s a question on an M-series GPU and more on CPU, so it isn't wired in: where it runs is a deployment decision.
+- **A cross-encoder reranker** over the provider's first 50 hits, 256 tokens: bge-reranker-v2-m3 and the smaller multilingual `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` both found 21 of 54 refs instead of 15, and passed 17 cases instead of 12. The small one took 0.34 s a question on an M-series GPU and 0.87 s on 2 of its CPU threads, the large one 2.4 s on the GPU. The gateway runs the small one, on its task's CPU ([docs/deploying.md](../docs/deploying.md) says why).
 
 The five UU 27/2022 refs can't be found until that law is indexed.
 
-Through the fused gateway the market set still passes 52 of 54, the same cases as at M4, but `search_documents` recall drops from 0.74 to 0.70: its questions name no kinds, and regulations now share the 8 places. Ask with `kinds` to search one provider alone.
+Through the fused gateway the market set still passes 52 of 54, the same cases as at M4, but `search_documents` recall drops from 0.74 to 0.70: its questions name no kinds, and regulations now share the 8 places. Ask with `kinds` to search one provider alone. With the reranker the market set still passes 52 of 54, and `search_documents` MRR rises from 0.67 (M4) to 0.72.
 
 **Activating an index version** (§8): run the set on the active version and on the candidate (`METAMORPH_MARKET_INDEX_VERSION`), then `metamorph-eval compare active.json candidate.json`. It exits 0 only if the candidate passes at least as many cases and recalls at least as much, and lists the cases gained and lost. `scripts/refresh-market-index.sh` does all of it after each publish, through the `market_index` DAG.
 

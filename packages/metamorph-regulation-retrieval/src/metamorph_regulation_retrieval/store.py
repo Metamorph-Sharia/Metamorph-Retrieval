@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import psycopg
@@ -185,7 +185,8 @@ class PostgresStore:
         if (table, column) not in self._columns:
             with self._connect() as conn:
                 self._columns[(table, column)] = conn.execute(
-                    "select count(*) from information_schema.columns where table_name = %s and column_name = %s",
+                    "select count(*) from information_schema.columns "
+                    "where table_schema = any(current_schemas(false)) and table_name = %s and column_name = %s",
                     (table, column),
                 ).fetchone()[0] > 0
         return self._columns[(table, column)]
@@ -233,11 +234,21 @@ class PostgresStore:
             return conn.execute(f"select max(published_at) from {self.meta_table}").fetchone()[0]
 
     def _connect(self, **settings: Any) -> psycopg.Connection:
-        return psycopg.connect(self.url, **({"options": self.options} if self.options else {}), **settings)
+        if self.options:
+            settings = {"options": session_options(self.url, self.options), **settings}
+        return psycopg.connect(self.url, **settings)
 
     def ping(self) -> None:
         with self._connect(connect_timeout=2) as conn:
             conn.execute(f"select 1 from {self.chunk_table} limit 1").fetchone()
+
+
+def session_options(url: str, options: str, environ: Mapping[str, str] = os.environ) -> str:
+    """The options every session takes, then these: PGOPTIONS, as libpq reads it, and the URL's own. Either can name
+    the schema the index is in (`-c search_path=retrieval_regulation,public`). Options passed to a connection replace
+    PGOPTIONS, so they are joined here instead."""
+    named = [environ.get("PGOPTIONS", ""), psycopg.conninfo.conninfo_to_dict(url).get("options") or "", options]
+    return " ".join(option for option in named if option)
 
 
 def _passage(row: Sequence[Any]) -> Passage:
