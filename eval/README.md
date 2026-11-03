@@ -5,6 +5,7 @@ Retrieval is judged on its own, apart from the agent's answers, so that "retriev
 | Set | Cases | What |
 |---|---|---|
 | [`market/cases.jsonl`](market/cases.jsonl) | 54 | The market provider: companies, industry context, figures, series, report and release passages, links, reading, errors |
+| [`regulation/cases.jsonl`](regulation/cases.jsonl) | 42 | Regulation search: mira-ai-chatbot's golden questions, asked as they are, for the retrieval units each answer needs (54 refs) |
 
 ## A case
 
@@ -38,6 +39,19 @@ Retrieval is judged on its own, apart from the agent's answers, so that "retriev
 
 When the data changes, `metamorph-eval run` lists any expected ref the provider no longer holds.
 
+**How the regulation set was built** (2026-11-03):
+- **The questions are mira-ai-chatbot's golden set** (`data/evaluation/golden_queries_50_v4_1.jsonl`), so retrieval is judged on what the answering agent is judged on. Each case asks `search_documents` with the question as it is and `in_force_on` its reference date; `match` is `all`.
+- **Expected refs are the retrieval units the golden answer requires,** since a `doc:` ref's address is a unit's (`published.provision_unit`, the contract).
+  - The golden labels a clause; the unit is that clause, or the unit holding it: a lettered item is inside its paragraph (`pasal-3/ayat-6/huruf-a` is `pasal-3/ayat-6`). An SEOJK part or a fatwa's decision is one unit, its numbered items within it.
+  - An article split into paragraphs is the paragraph its snippet quotes.
+  - A golden label that names a published provision is used as it is. Where the golden snippet paraphrases its clause, the clause was read to confirm it.
+- **Ten labels were mapped by hand.** In each, the label doesn't name, on the platform, the provision its snippet quotes: fatwas the platform numbers differently, POJK 22/2023's exoneration clause (Pasal 46, not 23), and SEOJK parts the snippet quotes one item of. Each case's `basis` says which and why.
+- **Left out:**
+  - eight questions with no regulatory evidence: four that should be refused (nothing on the platform answers them, one of them naming a Permenaker the platform doesn't publish), three market questions;
+  - GOLDEN-013, whose fatwa (8/2000) has no decision wording on the platform.
+- **Every expected clause was in force on its question's date,** so `in_force_on` excludes none.
+- **Five refs are in UU 27/2022 (personal data protection),** which the regulation index leaves out by default (`METAMORPH_REGULATION_EXCLUDED`). Those cases fail until it is indexed. Whether to index it is a product decision.
+
 ## Runs
 
 | Run | Passed | Recall@k | MRR | Notes |
@@ -45,6 +59,30 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 | [2026-10-30, M2 (SQL only)](market/runs/2026-10-30-m2.md) | 32 of 54 | 0.58 | 0.53 | Every exact case passes (companies, figures, links, reads, errors). `search_documents` waits for M4's index (18 cases). `industry_context` and `find_series` miss three English queries, which need meaning rather than words |
 | [2026-10-30, M3 (through the gateway, over HTTP)](market/runs/2026-10-30-m3.md) | 32 of 54 | 0.58 | 0.53 | The same, end to end: client → HTTP → gateway → market provider and regulation stand-in. Identical to M2 case by case |
 | [2026-10-30, M4 (search: full text + bge-m3, `market-2026-10-30.6`, through the gateway)](market/runs/2026-10-30-m4.md) | 52 of 54 | 0.89 | 0.82 | `search_documents` 18 of 19 (full text alone: 17, recall 0.68 → 0.74); `industry_context` 4 of 4 and `find_series` 8 of 9 with meaning. Activated by [the gate](market/runs/2026-10-30-m4-gate.md); [how the model and floor were chosen](market/runs/2026-10-30-m4-models.md) |
+
+**Regulation runs** (k = 8; a local build of the index from the platform's published data, 576,988 provisions, 179,325 of them searchable units; 2026-11-03):
+
+| Run | Passed | Recall@k | MRR | Notes |
+|---|---|---|---|---|
+| mira-ai-chatbot's `PostgresRAGClient` (full text), its first 8 | 3 of 42 | 4 of 54 refs | | The baseline. In the 25 it gives the model: 9 of 54 |
+| [The provider as merged](regulation/runs/2026-11-03-as-merged.md): every provision searched, by meaning only | 6 of 42 | 0.15 | 0.09 | An article and its paragraphs, and an item and its paragraph, compete for the same places |
+| [Retrieval units only, by words and meaning fused](regulation/runs/2026-11-03-units-words.md) | 12 of 42 | 0.31 | 0.12 | What the index builds now |
+| [Through the gateway, market and regulation fused](regulation/runs/2026-11-03-gateway.md) | 9 of 42 | 0.21 | 0.05 | A search of every kind: market passages take some of the 8 places |
+
+**How each change counted,** on the same vectors (2026-11-03):
+
+| Searched | By meaning | By words and meaning |
+|---|---|---|
+| Every provision | 6 of 42, recall 0.15 | 5 of 42, recall 0.12 |
+| Retrieval units only | 10 of 42, recall 0.25 | **12 of 42, recall 0.31** |
+
+- **Words help only over units.** Over every provision they add articles and items to the crowd.
+- **The word search's stop words are the corpus's own.** The `indonesian` configuration keeps every word, so stems in more than 5% of units (177 of them: yang and dan, but also pasal, ayat, wajib) don't pick candidates. Without that, a question took 4 s and over every provision timed out; with it, under 1 s. They still count once a unit is a candidate. Dropping them altogether cost a case (11 of 42).
+- **A cross-encoder reranker** (bge-reranker-v2-m3 over the first 50 fused hits, 256 tokens) found 21 of 54 refs instead of 15 and passed 17 cases instead of 12. It took 2.4 s a question on an M-series GPU and more on CPU, so it isn't wired in: where it runs is a deployment decision.
+
+The five UU 27/2022 refs can't be found until that law is indexed.
+
+Through the fused gateway the market set still passes 52 of 54, the same cases as at M4, but `search_documents` recall drops from 0.74 to 0.70: its questions name no kinds, and regulations now share the 8 places. Ask with `kinds` to search one provider alone.
 
 **Activating an index version** (§8): run the set on the active version and on the candidate (`METAMORPH_MARKET_INDEX_VERSION`), then `metamorph-eval compare active.json candidate.json`. It exits 0 only if the candidate passes at least as many cases and recalls at least as much, and lists the cases gained and lost. `scripts/refresh-market-index.sh` does all of it after each publish, through the `market_index` DAG.
 

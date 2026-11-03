@@ -11,7 +11,7 @@ OWN = "metamorph_retrieval_gateway"
 CONTRACT = "metamorph_retrieval_contract"
 ADAPTERS = {CONTRACT, f"{OWN}.application", f"{OWN}.adapters", "mcp", "mcp_types", "starlette", "anyio",
             "opentelemetry"}
-PROVIDERS = ("metamorph_market_retrieval", "metamorph_regulation_standin")
+PROVIDERS = ("metamorph_market_retrieval", "metamorph_regulation_retrieval")
 
 
 def imports(path: Path) -> set[str]:

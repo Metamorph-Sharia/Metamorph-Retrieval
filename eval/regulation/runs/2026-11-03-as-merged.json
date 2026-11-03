@@ -1,0 +1,905 @@
+{
+  "overall": {
+    "name": "all",
+    "cases": 42,
+    "passed": 6,
+    "recall": 0.15476190476190477,
+    "mrr": 0.08611111111111111
+  },
+  "by_tool": [
+    {
+      "name": "search_documents",
+      "cases": 42,
+      "passed": 6,
+      "recall": 0.15476190476190477,
+      "mrr": 0.08611111111111111
+    }
+  ],
+  "by_phase": [
+    {
+      "name": "compliance",
+      "cases": 42,
+      "passed": 6,
+      "recall": 0.15476190476190477,
+      "mrr": 0.08611111111111111
+    }
+  ],
+  "cases": [
+    {
+      "id": "golden-001",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-137/ayat-4",
+        "doc:ojk:seojk:2025:19#romawi-x/angka-2",
+        "doc:ojk:pojk:2024:40#penjelasan/pasal-137/ayat-4",
+        "doc:ojk:seojk:2025:19#romawi-x",
+        "doc:ojk:pojk:2024:40#pasal-137",
+        "doc:ojk:pojk:2024:29#pasal-4",
+        "doc:bi:pbi:2021:6#pasal-89/ayat-6",
+        "doc:bi:pbi:2021:6#pasal-162"
+      ]
+    },
+    {
+      "id": "golden-002",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-137/ayat-3"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:41#penjelasan/pasal-104/ayat-2",
+        "doc:ojk:pojk:2024:40#pasal-137",
+        "doc:ojk:pojk:2021:14#penjelasan/pasal-10/ayat-4",
+        "doc:ojk:pojk:2021:30#pasal-i/pasal-20d/ayat-1/huruf-a",
+        "doc:ojk:pojk:2018:32#pasal-64/huruf-b",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-4/ayat-7",
+        "doc:ojk:seojk:2025:19#romawi-x",
+        "doc:ojk:pojk:2020:58#pasal-i/pasal-20d/ayat-1/huruf-a"
+      ]
+    },
+    {
+      "id": "golden-003",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-169",
+        "doc:ojk:pojk:2024:40#pasal-169/ayat-2",
+        "doc:ojk:pojk:2022:28#pasal-ii/angka-2",
+        "doc:ojk:pojk:2024:40#pasal-169/ayat-1",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-32a",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-45",
+        "doc:ojk:pojk:2024:41#penjelasan/pasal-104/ayat-2",
+        "doc:ojk:pojk:2025:17#pasal-11"
+      ]
+    },
+    {
+      "id": "golden-004",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-3/ayat-6"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:35#pasal-i",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-9",
+        "doc:bi:padg:2019:19#pasal-5/huruf-b/angka-2",
+        "doc:bi:padg:2025:13#pasal-17/ayat-2/huruf-a/angka-2",
+        "doc:bi:padg:2025:13#pasal-56/ayat-2/huruf-a/angka-2",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-10",
+        "doc:bi:padg:2019:17#pasal-5/huruf-b/angka-2",
+        "doc:ojk:pojk:2024:48#pasal-121/ayat-3"
+      ]
+    },
+    {
+      "id": "golden-005",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-170"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-24a/huruf-a",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-32a",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-24a",
+        "doc:ojk:pojk:2024:49#pasal-24/ayat-2/huruf-f/angka-1",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-39a/huruf-a",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-50/ayat-1/huruf-o",
+        "doc:ojk:pojk:2024:49#pasal-24/ayat-2/huruf-e/angka-1",
+        "doc:ojk:pojk:2024:49#pasal-24/ayat-2/huruf-b/angka-1"
+      ]
+    },
+    {
+      "id": "golden-006",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-153/ayat-1, doc:ojk:pojk:2024:40#pasal-153/ayat-8"
+      ],
+      "returned": [
+        "doc:bi:padg:2018:9#pasal-30",
+        "doc:bi:padg:2020:24#pasal-33",
+        "doc:bi:padg:2025:20#pasal-331",
+        "doc:bi:padg:2018:37#pasal-i/pasal-33",
+        "doc:bi:padg:2025:20#pasal-335/ayat-1",
+        "doc:bi:padg:2021:19#pasal-11/ayat-7",
+        "doc:bi:padg:2025:20#pasal-335",
+        "doc:bi:padg:2020:24#pasal-36"
+      ]
+    },
+    {
+      "id": "golden-007",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-137/ayat-3, doc:ojk:pojk:2024:40#pasal-137/ayat-4"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:41#penjelasan/pasal-104/ayat-2",
+        "doc:ojk:pojk:2021:30#pasal-i/pasal-20d/ayat-1/huruf-a",
+        "doc:ojk:pojk:2020:58#pasal-i/pasal-20d/ayat-1/huruf-a",
+        "doc:id:permenko-perekonomian:2025:12#pasal-i/pasal-36/ayat-3/huruf-d",
+        "doc:ojk:pojk:2021:30#pasal-i/pasal-20d/ayat-2",
+        "doc:ojk:pojk:2020:58#pasal-i/pasal-20d/ayat-2",
+        "doc:ojk:pojk:2018:32#pasal-64/huruf-b",
+        "doc:id:permenko-perekonomian:2026:1#pasal-50/ayat-1"
+      ]
+    },
+    {
+      "id": "golden-008",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.5,
+      "reciprocal_rank": 0.2,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-xiv"
+      ],
+      "returned": [
+        "doc:ojk:padk:2025:38#mengingat",
+        "doc:ojk:pojk:2023:3#pasal-39",
+        "doc:ojk:seojk:2023:11#romawi-ix",
+        "doc:ojk:pojk:2024:36#penjelasan/umum",
+        "doc:ojk:seojk:2025:19#romawi-xxii",
+        "doc:ojk:pojk:2023:3#pasal-39/ayat-1",
+        "doc:ojk:pojk:2025:30#pasal-79",
+        "doc:ojk:seojk:2025:19#romawi-xxii/angka-1"
+      ]
+    },
+    {
+      "id": "golden-009",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:117#diktum-keempat"
+      ],
+      "returned": [
+        "doc:dsnmui:fatwa:158#menimbang",
+        "doc:dsnmui:fatwa:126#menimbang",
+        "doc:dsnmui:fatwa:119#diktum-ketiga/angka-3/huruf-a",
+        "doc:dsnmui:fatwa:76#menimbang",
+        "doc:dsnmui:fatwa:79#diktum-kedua/angka-2",
+        "doc:dsnmui:fatwa:67#menimbang",
+        "doc:dsnmui:fatwa:67#diktum-kedua",
+        "doc:dsnmui:fatwa:113#diktum-ketujuh/angka-2"
+      ]
+    },
+    {
+      "id": "golden-010",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:17#diktum-ketiga"
+      ],
+      "returned": [
+        "doc:ojk:seojk:2025:19#romawi-xiv/angka-6",
+        "doc:dsnmui:fatwa:138#diktum-keempat/angka-7",
+        "doc:ojk:pojk:2024:12#pasal-20/ayat-2/huruf-d",
+        "doc:dsnmui:fatwa:140#diktum-ketiga/angka-15",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-110/ayat-4",
+        "doc:dsnmui:fatwa:147#diktum-kedelapan/angka-1",
+        "doc:ojk:pojk:2023:22#penjelasan/pasal-60/ayat-2/huruf-e",
+        "doc:dsnmui:fatwa:54#diktum-ketiga"
+      ]
+    },
+    {
+      "id": "golden-011",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-xiv"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2023:12#pasal-84/ayat-6",
+        "doc:bi:padg:2022:7#pasal-54",
+        "doc:ojk:pojk:2020:64#pasal-i/pasal-3",
+        "doc:ojk:pojk:2018:34#pasal-20",
+        "doc:ojk:seojk:2022:32#romawi-i/angka-15/huruf-m/angka-8",
+        "doc:ojk:pojk:2020:31#pasal-23",
+        "doc:bi:pbi:2021:6#pasal-89/ayat-6",
+        "doc:ojk:pojk:2020:64#pasal-i/pasal-36"
+      ]
+    },
+    {
+      "id": "golden-012",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:4#diktum-pertama"
+      ],
+      "returned": [
+        "doc:bi:pbi:2004:18#pasal-1/angka-8",
+        "doc:dsnmui:fatwa:84#memperhatikan",
+        "doc:bi:pbi:2004:19#pasal-1/angka-8",
+        "doc:bi:pbi:2006:24#pasal-1/angka-7",
+        "doc:id:pmk:2011:137#pasal-1/angka-7",
+        "doc:bi:sebi:2008:14#romawi-iii/angka-2/huruf-n",
+        "doc:dsnmui:fatwa:84#diktum-pertama",
+        "doc:dsnmui:fatwa:84#memperhatikan/angka-2"
+      ]
+    },
+    {
+      "id": "golden-014",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:7#diktum-kedua"
+      ],
+      "returned": [
+        "doc:bi:pbi:2004:18#pasal-1/angka-5",
+        "doc:bi:sebi:2008:14#romawi-iii/angka-1/huruf-d",
+        "doc:dsnmui:fatwa:117#diktum-pertama/angka-14",
+        "doc:bi:pbi:2006:24#pasal-1/angka-5",
+        "doc:dsnmui:fatwa:33#menimbang",
+        "doc:bi:pbi:2009:24#pasal-1/angka-9",
+        "doc:dsnmui:fatwa:7#diktum-pertama",
+        "doc:bi:pbi:2020:9#pasal-1/angka-14"
+      ]
+    },
+    {
+      "id": "golden-015",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:17#diktum-ketiga"
+      ],
+      "returned": [
+        "doc:dsnmui:fatwa:140#diktum-ketiga/angka-15",
+        "doc:dsnmui:fatwa:138#diktum-keempat/angka-7",
+        "doc:dsnmui:fatwa:74#diktum-pertama",
+        "doc:dsnmui:fatwa:140#memperhatikan/angka-2/huruf-d",
+        "doc:dsnmui:fatwa:140#diktum-pertama/angka-26",
+        "doc:dsnmui:fatwa:54#diktum-ketiga",
+        "doc:dsnmui:fatwa:21#diktum-kesepuluh/angka-3",
+        "doc:ojk:pojk:2023:22#penjelasan/pasal-60/ayat-2/huruf-e"
+      ]
+    },
+    {
+      "id": "golden-016",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:dsnmui:fatwa:19#diktum-pertama"
+      ],
+      "returned": [
+        "doc:dsnmui:fatwa:117#diktum-pertama/angka-15",
+        "doc:ojk:pojk:2019:10#pasal-1/angka-27",
+        "doc:bi:padg:2021:6#pasal-i/pasal-1/angka-24",
+        "doc:bi:pbi:2006:24#pasal-1/angka-12",
+        "doc:bi:pbi:2004:18#pasal-1/angka-11",
+        "doc:bi:pbi:2007:9#pasal-i/pasal-1/angka-12",
+        "doc:bi:sebi:2012:7#romawi-i/angka-2",
+        "doc:dsnmui:fatwa:79#diktum-kedua"
+      ]
+    },
+    {
+      "id": "golden-017",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-198/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-198",
+        "doc:ojk:pojk:2024:41#pasal-30",
+        "doc:ojk:pojk:2024:42#pasal-1/angka-27",
+        "doc:bi:pbi:2004:24#pasal-26/ayat-1",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-14a",
+        "doc:ojk:pojk:2025:10#pasal-i/pasal-1/angka-26",
+        "doc:ojk:pojk:2022:12#pasal-i/pasal-1/angka-16",
+        "doc:bi:pbi:2004:24#pasal-21"
+      ]
+    },
+    {
+      "id": "golden-018",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-20/ayat-1, doc:ojk:pojk:2024:40#pasal-20/ayat-3, doc:ojk:pojk:2024:40#pasal-22/ayat-1"
+      ],
+      "returned": [
+        "doc:bi:padg:2026:17#pasal-1/angka-5",
+        "doc:bi:padg:2020:18#pasal-1/angka-2",
+        "doc:id:uu:2023:4#pasal-15/pasal-1/angka-10",
+        "doc:ojk:pojk:2023:17#pasal-1/angka-3",
+        "doc:ojk:pojk:2023:12#pasal-1",
+        "doc:bi:pbi:2020:9#pasal-1/angka-2",
+        "doc:ojk:pojk:2024:40#pasal-1/angka-4",
+        "doc:id:uu:2008:21#pasal-1/angka-10"
+      ]
+    },
+    {
+      "id": "golden-019",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-20/ayat-1, doc:ojk:pojk:2024:40#pasal-198/ayat-1"
+      ],
+      "returned": [
+        "doc:dsnmui:fatwa:140#memperhatikan/angka-2",
+        "doc:dsnmui:fatwa:157#memperhatikan/angka-6",
+        "doc:dsnmui:fatwa:156#memperhatikan/angka-3",
+        "doc:dsnmui:fatwa:158#menimbang",
+        "doc:dsnmui:fatwa:142#memperhatikan",
+        "doc:dsnmui:fatwa:162#diktum-keenam/angka-2",
+        "doc:dsnmui:fatwa:137#menimbang",
+        "doc:dsnmui:fatwa:142#memperhatikan/angka-1"
+      ]
+    },
+    {
+      "id": "golden-020",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-198/ayat-2"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2017:3#pasal-35/ayat-2",
+        "doc:ojk:pojk:2017:3#pasal-35",
+        "doc:ojk:pojk:2023:23#pasal-79/ayat-2",
+        "doc:ojk:pojk:2025:10#pasal-i/pasal-1/angka-26",
+        "doc:ojk:pojk:2022:12#pasal-i/pasal-1/angka-16",
+        "doc:ojk:pojk:2024:2#pasal-12",
+        "doc:ojk:pojk:2018:24#pasal-41",
+        "doc:ojk:pojk:2024:2#pasal-12/ayat-1"
+      ]
+    },
+    {
+      "id": "golden-021",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-iii, doc:ojk:seojk:2025:19#romawi-ii"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:29#pasal-i/pasal-142/ayat-3",
+        "doc:bi:pbi:2021:6#pasal-99",
+        "doc:bi:pbi:2021:6#pasal-109",
+        "doc:bi:pbi:2021:6#pasal-100",
+        "doc:bi:pbi:2021:6#pasal-107",
+        "doc:ojk:pojk:2024:40#pasal-133/ayat-3",
+        "doc:ojk:pojk:2024:16#pasal-27/ayat-4",
+        "doc:ojk:pojk:2022:12#pasal-i/pasal-8/ayat-4"
+      ]
+    },
+    {
+      "id": "golden-022",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-198/ayat-1"
+      ],
+      "returned": [
+        "doc:id:uu:2008:21#pasal-37",
+        "doc:ojk:pojk:2018:24#pasal-61/ayat-1",
+        "doc:ojk:pojk:2018:24#pasal-61/ayat-2",
+        "doc:ojk:pojk:2018:24#pasal-61",
+        "doc:ojk:pojk:2024:48#pasal-53",
+        "doc:ojk:pojk:2019:10#pasal-18",
+        "doc:id:uu:2023:4#pasal-15/pasal-66b/ayat-1",
+        "doc:ojk:pojk:2020:47#pasal-1"
+      ]
+    },
+    {
+      "id": "golden-023",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-153/ayat-5",
+        "doc:ojk:pojk:2024:40#pasal-153",
+        "doc:ojk:pojk:2024:40#pasal-153/ayat-6",
+        "doc:ojk:pojk:2024:40#pasal-153/ayat-7",
+        "doc:bi:pbi:2012:23#pasal-17/ayat-5",
+        "doc:bi:pbi:2005:18#pasal-47",
+        "doc:bi:pbi:2005:18#pasal-44",
+        "doc:bi:pbi:2012:23#pasal-17/ayat-4"
+      ]
+    },
+    {
+      "id": "golden-024",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:id:uu:2022:27#pasal-4/ayat-2, doc:id:uu:2022:27#pasal-20/ayat-2"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2026:8#pasal-22/ayat-4/huruf-e",
+        "doc:ojk:pojk:2024:40#pasal-221/ayat-2",
+        "doc:ojk:pojk:2026:8#pasal-23/ayat-3/huruf-d",
+        "doc:ojk:pojk:2023:21#pasal-29/ayat-2",
+        "doc:ojk:seojk:2021:6#romawi-iv/angka-9/huruf-g/angka-2",
+        "doc:ojk:pojk:2026:8#penjelasan/pasal-23/ayat-3/huruf-d",
+        "doc:bi:padg:2025:26#pasal-126",
+        "doc:ojk:pojk:2024:40#pasal-214"
+      ]
+    },
+    {
+      "id": "golden-025",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:id:uu:2022:27#pasal-20/ayat-2"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2026:8#pasal-22/ayat-4/huruf-e",
+        "doc:bi:pbi:2021:7#pasal-222/ayat-1/huruf-a/angka-2",
+        "doc:id:permenkominfo:2016:20#pasal-12/ayat-2",
+        "doc:bi:pbi:2021:6#pasal-257/ayat-1/huruf-a/angka-2",
+        "doc:ojk:pojk:2023:21#pasal-29/ayat-2",
+        "doc:ojk:pojk:2026:8#penjelasan/pasal-24/ayat-1",
+        "doc:id:pp:2019:71#pasal-14/ayat-4",
+        "doc:ojk:pojk:2023:22#pasal-23"
+      ]
+    },
+    {
+      "id": "golden-026",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-vii"
+      ],
+      "returned": [
+        "doc:bi:padg:2026:14#pasal-13",
+        "doc:bi:padg:2018:21#penjelasan/pasal-16/ayat-1",
+        "doc:id:uu:2023:4#pasal-15/pasal-43",
+        "doc:bi:padg:2026:14#penjelasan/pasal-13/ayat-4",
+        "doc:bi:sebi:2013:13#romawi-vii",
+        "doc:bi:pbi:2021:15#pasal-48",
+        "doc:ojk:seojk:2021:6#romawi-iv/angka-12/huruf-b/angka-1",
+        "doc:bi:padg:2018:21#pasal-15"
+      ]
+    },
+    {
+      "id": "golden-027",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-165/ayat-1, doc:ojk:pojk:2024:40#pasal-162/ayat-4"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-37/ayat-1/huruf-g",
+        "doc:id:peraturan-ppatk:2021:1#pasal-50/ayat-1",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-37/ayat-1/huruf-g/angka-2",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-37/ayat-1/huruf-g/angka-3",
+        "doc:id:peraturan-ppatk:2021:1#pasal-50",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-37/ayat-1/huruf-g/angka-1",
+        "doc:id:peraturan-ppatk:2021:2#pasal-38",
+        "doc:id:peraturan-ppatk:2021:1#pasal-40"
+      ]
+    },
+    {
+      "id": "golden-028",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2023:22#pasal-62/ayat-1"
+      ],
+      "returned": [
+        "doc:id:uu:2024:1#pasal-i/pasal-27b",
+        "doc:ojk:pojk:2023:22#pasal-62",
+        "doc:id:uu:2026:4#pasal-i/pasal-8b",
+        "doc:id:uu:2024:1#pasal-i/pasal-27b/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-158",
+        "doc:ojk:seojk:2025:16#romawi-iv/angka-19/huruf-b",
+        "doc:ojk:seojk:2021:6#romawi-ii/angka-5/huruf-a/angka-5",
+        "doc:id:uu:2023:1#pasal-228"
+      ]
+    },
+    {
+      "id": "golden-029",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:id:uu:2022:27#pasal-9, doc:id:uu:2022:27#pasal-40/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2023:22#pasal-21",
+        "doc:ojk:pojk:2023:22#pasal-21/ayat-1",
+        "doc:ojk:pojk:2023:21#pasal-29",
+        "doc:bi:pbi:2026:6#pasal-81",
+        "doc:ojk:pojk:2023:21#pasal-29/ayat-2",
+        "doc:id:uu:2023:4#pasal-241/ayat-1",
+        "doc:ojk:pojk:2023:22#pasal-21/ayat-3",
+        "doc:ojk:pojk:2023:22#pasal-23"
+      ]
+    },
+    {
+      "id": "golden-030",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2023:22#pasal-46/ayat-2"
+      ],
+      "returned": [
+        "doc:ojk:seojk:2021:22#romawi-v/angka-41/huruf-b",
+        "doc:ojk:seojk:2021:22#romawi-v/angka-41/huruf-b/angka-5",
+        "doc:ojk:pojk:2021:12#pasal-143/ayat-2/huruf-d",
+        "doc:bi:padg:2023:20#penjelasan/pasal-32/ayat-1",
+        "doc:bi:pbi:2020:20#pasal-12/ayat-1",
+        "doc:bi:pbi:2020:20#pasal-12",
+        "doc:bi:padg:2025:32#pasal-169",
+        "doc:ojk:pojk:2022:11#pasal-36"
+      ]
+    },
+    {
+      "id": "golden-031",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-235, doc:ojk:pojk:2024:40#pasal-236"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:37#pasal-30",
+        "doc:ojk:pojk:2025:37#pasal-29",
+        "doc:ojk:pojk:2025:13#pasal-120",
+        "doc:ojk:pojk:2025:11#pasal-82/huruf-b",
+        "doc:ojk:pojk:2022:28#pasal-ii/angka-4",
+        "doc:ojk:pojk:2024:42#pasal-44",
+        "doc:ojk:pojk:2024:49#pasal-47",
+        "doc:ojk:pojk:2025:33#pasal-22"
+      ]
+    },
+    {
+      "id": "golden-032",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-xxii"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2026:9#pasal-19/huruf-y",
+        "doc:ojk:seojk:2022:4#romawi-i/angka-2/huruf-a/angka-3",
+        "doc:ojk:seojk:2022:4#romawi-ii",
+        "doc:ojk:seojk:2022:20#romawi-ii",
+        "doc:ojk:pojk:2022:24#pasal-23/angka-3",
+        "doc:ojk:padk:2026:8#pasal-2/huruf-c",
+        "doc:ojk:pojk:2022:4#pasal-i/pasal-5a",
+        "doc:ojk:seojk:2022:4#romawi-i/angka-2"
+      ]
+    },
+    {
+      "id": "golden-033",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2025:25#pasal-i",
+        "doc:ojk:pojk:2024:40#pasal-169/ayat-2",
+        "doc:ojk:pojk:2022:28#pasal-ii/angka-2",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-34a/ayat-4/huruf-c",
+        "doc:ojk:pojk:2025:29#pasal-i/pasal-243/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-169",
+        "doc:ojk:pojk:2025:25#pasal-i/pasal-40",
+        "doc:ojk:pojk:2018:35#pasal-87/ayat-2"
+      ]
+    },
+    {
+      "id": "golden-034",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2022:10#pasal-4/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2015:5#pasal-22/ayat-2",
+        "doc:ojk:pojk:2015:5#pasal-22",
+        "doc:ojk:pojk:2015:5#pasal-22/ayat-6",
+        "doc:ojk:pojk:2015:5#pasal-22/ayat-4",
+        "doc:ojk:pojk:2015:5#pasal-22/ayat-5",
+        "doc:ojk:pojk:2015:5#pasal-22/ayat-3",
+        "doc:ojk:pojk:2016:66#pasal-22/ayat-5",
+        "doc:ojk:pojk:2016:66#pasal-22/ayat-2"
+      ]
+    },
+    {
+      "id": "golden-035",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:39#pasal-246",
+        "doc:ojk:pojk:2024:40#penjelasan/pasal-51/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-51/ayat-1",
+        "doc:ojk:seojk:2025:12#romawi-iii/angka-5",
+        "doc:bi:pbi:2024:5#penjelasan/pasal-38/ayat-1",
+        "doc:ojk:pojk:2025:3#pasal-21",
+        "doc:ojk:pojk:2024:43#pasal-14",
+        "doc:ojk:pojk:2024:39#pasal-246/ayat-1"
+      ]
+    },
+    {
+      "id": "golden-036",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-235"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:31#pasal-92/huruf-c",
+        "doc:ojk:pojk:2024:45#pasal-59/huruf-f",
+        "doc:ojk:pojk:2021:21#pasal-36/huruf-b",
+        "doc:ojk:pojk:2024:12#pasal-24/huruf-e",
+        "doc:ojk:pojk:2016:63#pasal-ii/angka-2",
+        "doc:ojk:pojk:2025:13#pasal-120/huruf-c",
+        "doc:ojk:pojk:2021:4#pasal-42/huruf-h",
+        "doc:ojk:pojk:2021:24#pasal-60/huruf-e"
+      ]
+    },
+    {
+      "id": "golden-038",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-169/ayat-1"
+      ],
+      "returned": [
+        "doc:bi:padg:2019:19#pasal-5",
+        "doc:ojk:pojk:2017:56#pasal-i/pasal-4a",
+        "doc:bi:padg:2019:1#pasal-i/pasal-1",
+        "doc:bi:pbi:2018:16#pasal-i/pasal-1",
+        "doc:bi:padg:2019:19#pasal-7",
+        "doc:ojk:pojk:2017:56#pasal-i/pasal-4a/ayat-3",
+        "doc:ojk:pojk:2016:36#pasal-i/pasal-4a/ayat-3",
+        "doc:id:uu:2011:21#pasal-39"
+      ]
+    },
+    {
+      "id": "golden-040",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-158"
+      ],
+      "returned": [
+        "doc:dsnmui:fatwa:140#diktum-keempat/angka-1/huruf-i",
+        "doc:dsnmui:fatwa:140#diktum-pertama",
+        "doc:ojk:pojk:2019:30#pasal-1",
+        "doc:ojk:pojk:2020:2#pasal-i/pasal-5/ayat-2",
+        "doc:dsnmui:fatwa:140#diktum-keempat/angka-2/huruf-g",
+        "doc:dsnmui:fatwa:140#diktum-ketiga",
+        "doc:ojk:pojk:2019:33#pasal-10/ayat-3/huruf-f",
+        "doc:dsnmui:fatwa:140#diktum-keempat/angka-1"
+      ]
+    },
+    {
+      "id": "golden-042",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:seojk:2025:19#romawi-xi"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-155",
+        "doc:ojk:seojk:2022:32#romawi-i/angka-15/huruf-m/angka-8",
+        "doc:ojk:pojk:2024:40#pasal-155/ayat-1",
+        "doc:ojk:pojk:2024:40#penjelasan/umum",
+        "doc:ojk:seojk:2022:32#romawi-i/angka-15/huruf-d/angka-8",
+        "doc:ojk:seojk:2025:19#romawi-xi/angka-6",
+        "doc:ojk:seojk:2025:19#romawi-xi/angka-6/huruf-f/angka-2",
+        "doc:ojk:seojk:2025:19#romawi-xi/angka-6/huruf-f"
+      ]
+    },
+    {
+      "id": "golden-044",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-153/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:27#pasal-41/ayat-5",
+        "doc:bi:pbi:2021:6#pasal-162",
+        "doc:ojk:pojk:2024:27#pasal-41/ayat-1",
+        "doc:ojk:pojk:2024:27#pasal-41",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-86",
+        "doc:ojk:pojk:2024:27#pasal-91/ayat-4",
+        "doc:ojk:pojk:2025:23#pasal-i/pasal-85",
+        "doc:ojk:pojk:2024:27#pasal-42/ayat-1"
+      ]
+    },
+    {
+      "id": "golden-046",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-169/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:25#penjelasan/umum",
+        "doc:ojk:pojk:2025:25#menimbang",
+        "doc:ojk:pojk:2022:28#pasal-ii/angka-2",
+        "doc:ojk:pojk:2024:41#penjelasan/pasal-104/ayat-3/huruf-a",
+        "doc:ojk:pojk:2025:25#pasal-i",
+        "doc:ojk:pojk:2025:11#penjelasan/pasal-43/ayat-5",
+        "doc:ojk:pojk:2023:24#pasal-116",
+        "doc:ojk:pojk:2024:41#penjelasan/pasal-104/ayat-2"
+      ]
+    },
+    {
+      "id": "golden-048",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#penjelasan/pasal-137/ayat-4",
+        "doc:ojk:seojk:2025:19#romawi-x/angka-2",
+        "doc:ojk:pojk:2024:40#pasal-137/ayat-4",
+        "doc:ojk:pojk:2021:30#pasal-i/pasal-20d/ayat-1",
+        "doc:ojk:seojk:2025:19#romawi-x",
+        "doc:bi:padg:2025:32#pasal-21",
+        "doc:ojk:pojk:2022:7#penjelasan/umum",
+        "doc:ojk:seojk:2025:19#romawi-xiv/angka-3/huruf-a"
+      ]
+    },
+    {
+      "id": "golden-050",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-3/ayat-6"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2025:35#pasal-i",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-9",
+        "doc:bi:padg:2019:19#pasal-5/huruf-b/angka-2",
+        "doc:bi:padg:2025:13#pasal-17/ayat-2/huruf-a/angka-2",
+        "doc:bi:padg:2019:17#pasal-5/huruf-b/angka-2",
+        "doc:bi:padg:2025:13#pasal-56/ayat-2/huruf-a/angka-2",
+        "doc:ojk:pojk:2024:48#pasal-121/ayat-3",
+        "doc:ojk:pojk:2025:35#pasal-i/pasal-10"
+      ]
+    }
+  ],
+  "unheld": [
+    "doc:id:uu:2022:27#pasal-4/ayat-2",
+    "doc:id:uu:2022:27#pasal-20/ayat-2",
+    "doc:id:uu:2022:27#pasal-9",
+    "doc:id:uu:2022:27#pasal-40/ayat-1"
+  ]
+}

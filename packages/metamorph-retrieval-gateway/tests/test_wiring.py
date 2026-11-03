@@ -28,9 +28,9 @@ def test_a_factory_that_cant_be_found_says_why(named: str, message: str) -> None
         providers_from(named)
 
 
-def test_by_default_the_market_and_the_regulation_standin_are_joined() -> None:
+def test_by_default_the_market_and_the_regulation_provider_are_joined() -> None:
     assert DEFAULT_PROVIDERS == ("metamorph_market_retrieval.wiring:market_provider,"
-                                 "metamorph_regulation_standin.wiring:standin_provider")
+                                 "metamorph_regulation_retrieval.wiring:regulation_provider")
 
 
 def test_the_catalog_is_built_from_the_environment(tmp_path) -> None:  # noqa: ANN001

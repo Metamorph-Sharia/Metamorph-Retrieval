@@ -5,12 +5,10 @@ Two numbers, measured the same way for both arms:
 - **document@5** — is the right document among the first five distinct documents?
 - **clause in set** — is the expected provision among the returned passages?
 
-The cases file is one JSON object per line:
-
-    {"question": "…", "expected": [{"document_id": "ojk:pojk:2024:40", "address": "pasal-137/ayat-3"}]}
-
-`address` may be omitted for document-level evidence, or may name a parent to
-match its children.
+The cases are metamorph-eval's (eval/regulation/cases.jsonl), so the judge and
+`metamorph-eval run` read one question set: each `search_documents` case's query,
+and its expected refs, `doc:{document_id}#{address}`. A ref without an address is
+document-level evidence; an address may name a parent, to match its children.
 """
 
 from __future__ import annotations
@@ -22,6 +20,7 @@ from pathlib import Path
 import psycopg
 from pgvector.psycopg import register_vector
 
+from ..domain.refs import parse_ref
 from .config import index_url
 
 SEARCH = """
@@ -41,7 +40,18 @@ class Score:
 
 
 def load_cases(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    """The search cases, as the judge measures them: a question and the provisions it expects."""
+    cases = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        {"question": case["arguments"]["query"], "expected": [_expected(ref) for ref in case["expect"].get("refs", ())]}
+        for case in cases
+        if case.get("tool") == "search_documents"
+    ]
+
+
+def _expected(text: str) -> dict:
+    ref = parse_ref(text)
+    return {"document_id": ref.document_id, "address": ref.address}
 
 
 def measure(

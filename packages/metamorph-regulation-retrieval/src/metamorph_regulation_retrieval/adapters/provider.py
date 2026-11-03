@@ -20,7 +20,9 @@ from metamorph_regulation_retrieval.domain.evidence import (
     hit,
     page,
 )
-from metamorph_regulation_retrieval.domain.legal import provision_label
+from metamorph_regulation_retrieval.domain.filters import Filters
+from metamorph_regulation_retrieval.domain.fusion import reciprocal_rank_fusion
+from metamorph_regulation_retrieval.domain.legal import legal_force_of, provision_label
 from metamorph_regulation_retrieval.domain.refs import RefError
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import (
@@ -42,6 +44,12 @@ INDEX_VERSION = "METAMORPH_REGULATION_INDEX_VERSION"
 DEFAULT_INDEX_VERSION = "regulation-index"
 FIND = "find_provision"
 KINDS = ("law", "regulation", "implementing_rule", "fatwa", "guideline", "circular", "explanatory")
+MAX_DEPTH = 50  # how far down the fused ranking a cursor can page
+CANDIDATES = MAX_DEPTH  # each ranking's candidates for fusion
+WORDS, SEMANTIC = "words", "semantic"
+NO_WORDS = "matched by meaning only: this index predates word search; rebuild it to match words too"
+NOT_DATED = ("in_force_on: revocations are not dated in this index, so documents revoked today were left out on "
+             "every day; rebuild the index to date them")
 
 FIND_TOOL = ToolSpec(
     name=FIND,
@@ -87,29 +95,40 @@ class RegulationProvider:
     # -- operations -------------------------------------------------------
 
     def search(self, request: SearchRequest) -> Page[Hit]:
-        warnings = _unsupported(request)
+        filters, warnings = _filters(request)
+        if filters is None:
+            return codec.hits_from_dict(page([], warnings=tuple(warnings), empty_reason=FILTERS_EXCLUDE_ALL))
+        start = _offset(request.cursor)
+        depth = min(start + request.limit, MAX_DEPTH)
         try:
             vector = self.embedder.encode(request.query)
-            rows = self.store.search(vector, request.limit)
+            by_meaning = self.store.by_meaning(vector, CANDIDATES, filters)
+            by_words = self.store.by_words(request.query, CANDIDATES, filters) if self.store.matches_words() else []
+            if not self.store.matches_words():
+                warnings.append(NO_WORDS)
+            if filters.in_force_on and not self.store.dates_revocations():
+                warnings.append(NOT_DATED)
         except Exception as error:  # noqa: BLE001 - a failed query is ours, not the caller's
             raise ProviderUnavailable(f"{NAME} could not search: {type(error).__name__}") from error
 
-        rows = [
-            (passage, score)
-            for passage, score in rows
-            if (not request.kinds or passage.doc_kind in request.kinds)
-            and (not request.issuers or passage.issuer in request.issuers)
-        ][: request.limit]
-
-        if not rows:
-            reason = FILTERS_EXCLUDE_ALL if (request.kinds or request.issuers) else NO_MATCH
+        passages = {passage.chunk_id: passage for passage, _ in (*by_meaning, *by_words)}
+        meaning_keys = [passage.chunk_id for passage, _ in by_meaning]
+        words_keys = [passage.chunk_id for passage, _ in by_words]
+        fused = reciprocal_rank_fusion([meaning_keys, words_keys])
+        chosen = fused[start:depth]
+        if not chosen:
+            reason = FILTERS_EXCLUDE_ALL if filters and not fused else NO_MATCH  # past the last page: no match
             return codec.hits_from_dict(page([], warnings=tuple(warnings), empty_reason=reason))
 
+        found_by = {key: [name for name, keys in ((WORDS, words_keys), (SEMANTIC, meaning_keys)) if key in keys]
+                    for key, _ in chosen}
         items = [
-            hit(passage, rank=rank, score=score, provider=self.name, index_version=self.index_version)
-            for rank, (passage, score) in enumerate(rows, start=1)
+            hit(passages[key], rank=rank, score=score, provider=self.name, index_version=self.index_version,
+                matched_by=found_by[key])
+            for rank, (key, score) in enumerate(chosen, start=start + 1)
         ]
-        return codec.hits_from_dict(page(items, warnings=tuple(warnings)))
+        following = depth if depth < min(len(fused), MAX_DEPTH) else None
+        return codec.hits_from_dict(page(items, warnings=tuple(warnings), cursor=following))
 
     def read(self, ref: Ref, *, window: int = 0) -> Evidence:
         if ref.address is None:
@@ -180,17 +199,26 @@ class RegulationProvider:
         return document
 
 
-def _unsupported(request: SearchRequest) -> list[str]:
-    warnings: list[str] = []
-    if request.documents:
-        warnings.append(
-            "documents: not applied; this provider searches the whole corpus, so narrow with kinds or in_force_on"
-        )
-    if request.published_from or request.published_to:
-        warnings.append("published_from/published_to: not applied; validity is filtered with in_force_on")
+def _filters(request: SearchRequest) -> tuple[Filters | None, list[str]]:
+    """The request in the index's terms, and what it asked that the index can't apply. None: nothing can match."""
+    kinds = frozenset(request.kinds)  # empty: not narrowed
     if request.legal_force:
-        warnings.append("legal_force: not applied; filter on kinds instead (fatwa is sharia, regulation is binding)")
+        kinds = frozenset(kind for kind in kinds or KINDS if legal_force_of(kind) in request.legal_force)
+    warnings: list[str] = []
+    if request.published_from or request.published_to:
+        warnings.append("published_from/published_to: not applied; they date reports and releases, and a "
+                        "regulation's validity is filtered with in_force_on")
     if request.sort is not Sort.RELEVANCE:
         warnings.append("sort: newest is not offered; results are ranked by relevance")
-    return warnings
+    if (request.kinds or request.legal_force) and not kinds & frozenset(KINDS):
+        return None, warnings
+    documents = tuple(ref.id for ref in request.documents)
+    return Filters(kinds, frozenset(request.issuers), documents, request.in_force_on), warnings
 
+
+def _offset(cursor: str | None) -> int:
+    if cursor is None:
+        return 0
+    if not cursor.isdigit():
+        raise InvalidArgument(f"cursor {cursor!r} is not one this provider gave; leave it out for the first page")
+    return int(cursor)

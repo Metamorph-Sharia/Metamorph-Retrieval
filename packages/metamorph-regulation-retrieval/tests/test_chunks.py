@@ -49,6 +49,14 @@ def test_a_real_article_stays_searchable() -> None:
     assert chunked.flags == []
 
 
+def test_a_provision_that_is_not_a_retrieval_unit_is_kept_for_reading_but_not_searched() -> None:
+    from dataclasses import replace
+
+    article = chunk(replace(provision(), address="pasal-137", kind="pasal", unit=False), "test")
+
+    assert article.searchable is False and "not_a_unit" in article.flags
+
+
 def test_the_context_carries_the_title_and_the_written_address() -> None:
     chunked = chunk(provision(), "test")
 

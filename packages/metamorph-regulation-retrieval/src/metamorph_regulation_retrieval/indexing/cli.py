@@ -21,7 +21,7 @@ import psycopg
 from . import build as builder
 from .build import Tables
 from .config import index_url, snapshot_id, table_name
-from .embed import MODELS, create_table, embed, load_model
+from .embed import MODELS, create_table, embed, index_vectors, load_model
 from .judge import load_cases, measure, worse_than
 
 WORSE = 3
@@ -88,6 +88,8 @@ def _build(args: argparse.Namespace) -> int:
             create_table(conn, table_name(tables.embeddings), MODELS[args.model]["dim"])
             conn.commit()
             embed(conn, tables.chunks, tables.embeddings, model)
+            index_vectors(conn, table_name(tables.embeddings), MODELS[args.model]["dim"])
+            conn.commit()
     problems = builder.validate(tables, require_vectors=not args.skip_embed)
     if problems:
         for problem in problems:

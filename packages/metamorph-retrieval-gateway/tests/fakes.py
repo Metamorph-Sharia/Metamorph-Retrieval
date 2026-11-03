@@ -1,7 +1,8 @@
 """Providers for the gateway's tests: the contract's memory provider, and two more that own what it doesn't.
 
-`Regulations` owns `doc:` and holds one regulation, as the stand-in will. `Industries` owns `industry:` and has one
-tool whose records name regulations by `{"ref": …}` stubs, as the market's do.
+`Regulations` owns `doc:` and holds one regulation; `SearchingRegulations` searches them too, as the regulation
+provider does. `Industries` owns `industry:` and has one tool whose records name regulations by `{"ref": …}` stubs, as
+the market's do.
 """
 
 from __future__ import annotations
@@ -15,7 +16,16 @@ from retrieval_samples import PUBLISHED_AT, provenance, regulation
 
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import CapabilityMissing, UnknownRef, UnknownTool
-from metamorph_retrieval_contract.evidence import Evidence, Hit, LegalForce, Page, Qualifiers, Record
+from metamorph_retrieval_contract.evidence import (
+    EmptyReason,
+    Evidence,
+    Hit,
+    LegalForce,
+    MatchedBy,
+    Page,
+    Qualifiers,
+    Record,
+)
 from metamorph_retrieval_contract.links import Link
 from metamorph_retrieval_contract.provider import JSON, Manifest, ToolSpec
 from metamorph_retrieval_contract.refs import Ref
@@ -56,6 +66,30 @@ class Regulations:
 
     def call(self, tool: str, arguments: Mapping[str, Any]) -> JSON:
         raise UnknownTool(f"regulation has no tool {tool}")
+
+
+class SearchingRegulations(Regulations):
+    """Finds every regulation it holds, in order; or fails, or warns, as a test needs."""
+
+    def __init__(self, evidence: Sequence[Evidence] = (regulation(),), *, fails: Exception | None = None,
+                 warnings: tuple[str, ...] = ()) -> None:
+        super().__init__(evidence)
+        self.fails = fails
+        self.warnings = warnings
+        self.asked: list[SearchRequest] = []
+
+    def manifest(self) -> Manifest:
+        return replace(super().manifest(), name="regulation-search", kinds=frozenset({"regulation", "fatwa"}))
+
+    def search(self, request: SearchRequest) -> Page[Hit]:
+        self.asked.append(request)
+        if self.fails:
+            raise self.fails
+        found = [item for item in self.evidence.values() if item.kind in request.kinds][: request.limit]
+        if not found:
+            return Page.empty(EmptyReason.NO_MATCH, self.warnings)
+        return Page(tuple(Hit(item, rank=rank, score=0.9 - rank / 10, matched_by=frozenset({MatchedBy.SEMANTIC}))
+                          for rank, item in enumerate(found, start=1)), warnings=self.warnings)
 
 
 def industry(named: Sequence[Ref] = (POJK_40, UNPUBLISHED)) -> Evidence:

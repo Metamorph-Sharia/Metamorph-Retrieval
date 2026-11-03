@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import psycopg
 
-from .chunks import CHUNK_DDL, DOCUMENTS, META_DDL, PROVISIONS, Chunk, Provision, chunk
+from .chunks import CHUNK_DDL, COMMON_SHARE, DOCUMENTS, META_DDL, PROVISIONS, STEMS_DDL, Chunk, Provision, chunk
 from .config import excluded_documents, index_url, published_url, table_name, tag
 
 BUILD_DDL = """
@@ -49,6 +49,11 @@ class Tables:
     embeddings: str
     meta: str
 
+    @property
+    def stems(self) -> str:
+        """The word search's stems, named after the chunks they were counted in (stems_table)."""
+        return stems_table(self.chunks)
+
     @classmethod
     def for_snapshot(cls, snapshot: str) -> Tables:
         suffix = tag(snapshot)
@@ -81,6 +86,10 @@ def build(snapshot: str, tables: Tables, *, limit: int | None = None) -> int:
             cursor.execute(
                 f"create index {tables.chunks}_document on {tables.chunks} (document_id, address)"
             )
+            cursor.execute(f"create index {tables.chunks}_words on {tables.chunks} using gin (words)")
+            cursor.execute(f"drop table if exists {table_name(tables.stems)}")
+            cursor.execute(STEMS_DDL.format(stems=tables.stems, chunks=tables.chunks, share=COMMON_SHARE))
+            cursor.execute(f"alter table {tables.stems} add primary key (word)")
         target.commit()
     print(f"chunks: {len(provisions):,} in {time.perf_counter() - started:.1f}s", flush=True)
     return len(provisions)
@@ -124,8 +133,8 @@ def validate(tables: Tables, *, require_vectors: bool) -> list[str]:
         problems.append(f"chunks: {empty:,} rows have an empty body, address or title")
     if searchable == 0:
         problems.append("searchable: no chunk is searchable")
-    if require_vectors and vectors != chunks:
-        problems.append(f"vectors: {vectors:,} for {chunks:,} chunks")
+    if require_vectors and vectors != searchable:
+        problems.append(f"vectors: {vectors:,} for {searchable:,} searchable chunks")
     return problems
 
 
@@ -172,14 +181,18 @@ def activate(tables: Tables, live: Tables, *, allow_shrink: bool = False) -> Non
     with psycopg.connect(index_url()) as conn:
         with conn.cursor() as cursor:
             for built, target in zip(
-                (tables.chunks, tables.embeddings, tables.meta),
-                (live.chunks, live.embeddings, live.meta),
+                (tables.chunks, tables.embeddings, tables.meta, tables.stems),
+                (live.chunks, live.embeddings, live.meta, live.stems),
                 strict=True,
             ):
                 cursor.execute(f"drop table if exists {target}__old")
                 cursor.execute(f"alter table if exists {target} rename to {target}__old")
                 cursor.execute(f"alter table {built} rename to {target}")
         conn.commit()
+
+
+def stems_table(chunks: str) -> str:
+    return f"{chunks}_stems"
 
 
 def exists(conn: psycopg.Connection, table: str) -> bool:

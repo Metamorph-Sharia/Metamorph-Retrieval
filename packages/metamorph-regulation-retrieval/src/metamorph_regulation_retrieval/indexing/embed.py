@@ -30,8 +30,8 @@ SELECT = """
 select c.chunk_id, c.context_text
 from {chunk} c
 left join {embed} e using (chunk_id)
-where e.chunk_id is null
-order by c.chunk_id
+where c.searchable and e.chunk_id is null
+order by length(c.context_text), c.chunk_id
 """
 
 
@@ -48,9 +48,22 @@ def load_model(name: str = DEFAULT_MODEL, max_seq_len: int = MAX_SEQ_LEN):
     return model
 
 
+# The graph the provider searches (store.py): half-precision vectors, cosine distance. The query's
+# expression must be this one for the planner to use it.
+VECTOR_INDEX = (
+    "create index if not exists {table}_hnsw on {table} "
+    "using hnsw ((embedding::halfvec({dim})) halfvec_cosine_ops)"
+)
+
+
 def create_table(conn: psycopg.Connection, table: str, dim: int) -> None:
     conn.execute(f"drop table if exists {table}")
     conn.execute(EMBED_DDL.format(table=table, dim=dim))
+
+
+def index_vectors(conn: psycopg.Connection, table: str, dim: int) -> None:
+    """Build the HNSW graph once every vector is in: building it first would slow every insert."""
+    conn.execute(VECTOR_INDEX.format(table=table, dim=dim))
 
 
 def embed(
@@ -62,7 +75,10 @@ def embed(
     batch: int = BATCH,
     limit: int | None = None,
 ) -> int:
-    """Embed every chunk that has no vector yet. Resumable: rerunning skips them."""
+    """Embed every searchable chunk that has no vector yet. Resumable: rerunning skips them.
+
+    Shortest first: a batch is padded to its longest text, so batches of similar length waste little.
+    """
     register_vector(conn)
     rows = conn.execute(SELECT.format(chunk=chunk_table, embed=embed_table)).fetchall()
     if limit:

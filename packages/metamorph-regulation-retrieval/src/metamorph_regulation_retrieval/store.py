@@ -1,9 +1,10 @@
-"""Query the regulation index: candidate generation on the halfvec index, then a
-full-precision rescore of those candidates.
+"""Query the regulation index: two rankings of its retrieval units, which the provider fuses.
 
-The halfvec index is half the size of the float one and fits a 4 GiB instance.
-Rescoring the top candidates with the stored float vectors recovers the ranking
-that quantisation costs, for a few milliseconds.
+- **By meaning:** candidates from the halfvec graph, then a full-precision rescore. The halfvec index is half the
+  size of the float one and fits a 4 GiB instance; rescoring recovers the ranking that quantisation costs.
+- **By words:** the question's stems, as the market provider matches them: any of them, but a unit must hold at
+  least WORDS_SHARE of them, so one common word isn't a match. A term the question turns on ("escrow", "Rp5 miliar",
+  a fatwa's number) is found even where its meaning is too close to many others.
 """
 
 from __future__ import annotations
@@ -15,7 +16,10 @@ from typing import Any
 import psycopg
 from pgvector.psycopg import register_vector
 
+from metamorph_regulation_retrieval.domain.filters import NO_FILTERS, Filters
 from metamorph_regulation_retrieval.domain.passage import Passage
+from metamorph_regulation_retrieval.indexing.build import stems_table
+from metamorph_regulation_retrieval.indexing.chunks import LANGUAGE
 
 CHUNK_TABLE = "METAMORPH_REGULATION_CHUNK_TABLE"
 EMBED_TABLE = "METAMORPH_REGULATION_EMBED_TABLE"
@@ -43,15 +47,53 @@ with candidates as (
   from {embed} e
   join {chunk} c using (chunk_id)
   join {meta} m on m.document_id = c.document_id
-  where c.searchable
-  order by (e.embedding::halfvec({dim})) <=> (%s::vector)::halfvec({dim})
-  limit %s
+  where c.searchable{where}
+  order by (e.embedding::halfvec({dim})) <=> (%(vector)s::vector)::halfvec({dim})
+  limit %(depth)s
 )
-select {bare}, 1 - (embedding <=> %s::vector) as score
+select {bare}, 1 - (embedding <=> %(vector)s::vector) as score
 from candidates
-order by embedding <=> %s::vector
-limit %s
+order by embedding <=> %(vector)s::vector
+limit %(limit)s
 """
+
+# What `in_force_on` keeps: documents in force that day, and their provisions not yet ended. A provision's valid_to is
+# the day its wording stopped applying (published-schema.md), so it is excluded from that day on.
+IN_FORCE = """
+  and (m.effective_on is null or m.effective_on <= %(day)s)
+  and (c.valid_to is null or c.valid_to > %(day)s)
+  and not {revoked}"""
+REVOKED_ON = "coalesce(m.revoked_on <= %(day)s, m.status = 'revoked')"
+REVOKED_NOW = "m.status = 'revoked'"  # an index built before revocations were dated
+
+# The question's stems a search can use are those some unit holds: a stem none holds can't match. Of those, only the
+# uncommon pick candidates (the build counts them): a stem most units hold would make the search match nearly all of
+# them, and score each. All of them count once a unit is a candidate: the share it holds, and its rank. The stems are
+# matched as lexemes, as they are. ts_rank's normalisation 1 divides by 1 + log(length), so a long unit doesn't win on
+# length alone.
+WORDS = """
+with asked as (
+  select coalesce(array_agg(distinct s.word), '{{}}') as stems,
+         coalesce(array_agg(distinct s.word) filter (where not s.common), '{{}}') as picking
+  from unnest(tsvector_to_array(to_tsvector('{language}', %(query)s))) as q(word)
+  join {stems} s on s.word = q.word
+),
+wanted as (
+  select array_to_string(array(select quote_literal(word) from unnest(picking) as word), ' | ')::tsquery as picks,
+         array_to_string(array(select quote_literal(word) from unnest(stems) as word), ' | ')::tsquery as query
+  from asked where cardinality(picking) > 0
+)
+select {columns}, ts_rank(c.words, wanted.query, 1) as score
+from {chunk} c
+join {meta} m on m.document_id = c.document_id
+cross join asked cross join wanted
+where c.searchable and c.words @@ wanted.picks{where}
+  and cardinality(array(select unnest(tsvector_to_array(c.words)) intersect select unnest(asked.stems)))
+      >= %(share)s * cardinality(asked.stems)
+order by score desc, c.chunk_id
+limit %(limit)s
+"""
+WORDS_SHARE = 0.5  # the market's: a question is longer than what answers it, but one shared word isn't a match
 
 READ = """
 select {columns}
@@ -86,30 +128,93 @@ class PostgresStore:
         meta_table: str | None = None,
         dimension: int = 1024,
         ef_search: int = 200,
+        options: str | None = None,
     ) -> None:
         self.url = url
+        self.options = options  # libpq options for each session, e.g. read only with a statement timeout
         self.chunk_table = _table(chunk_table or os.environ.get(CHUNK_TABLE, DEFAULT_CHUNK))
         self.embed_table = _table(embed_table or os.environ.get(EMBED_TABLE, DEFAULT_EMBED))
         self.meta_table = _table(meta_table or os.environ.get(META_TABLE, DEFAULT_META))
         self.dimension = dimension
         self.ef_search = ef_search
+        self._columns: dict[tuple[str, str], bool] = {}
+        self._iterative: bool | None = None
 
-    def search(self, vector: Sequence[float], limit: int) -> list[tuple[Passage, float]]:
+    def by_meaning(
+        self, vector: Sequence[float], limit: int, filters: Filters = NO_FILTERS
+    ) -> list[tuple[Passage, float]]:
+        """The `limit` units nearest the question, among those the filters keep."""
         depth = max(int(limit) * 4, 50)
-        with psycopg.connect(self.url) as conn:
+        where, parameters = self._where(filters)
+        with self._connect() as conn:
             register_vector(conn)
             conn.execute(f"set local hnsw.ef_search = {max(self.ef_search, depth)}")
+            if self._scans_iteratively(conn):
+                # A filtered HNSW scan (the filters, and `searchable`) otherwise stops at ef_search candidates, most of
+                # them filtered out. The outer query orders them exactly again.
+                conn.execute("set local hnsw.iterative_scan = relaxed_order")
             rows = conn.execute(
                 SEARCH.format(
                     columns=COLUMNS, bare=BARE, embed=self.embed_table, chunk=self.chunk_table,
-                    meta=self.meta_table, dim=self.dimension,
+                    meta=self.meta_table, dim=self.dimension, where=where,
                 ),
-                (list(vector), depth, list(vector), list(vector), limit),
+                {"vector": list(vector), "depth": depth, "limit": limit, **parameters},
             ).fetchall()
         return [(_passage(row), float(row[18])) for row in rows]
 
+    def by_words(self, query: str, limit: int, filters: Filters = NO_FILTERS) -> list[tuple[Passage, float]]:
+        """The `limit` units sharing most of the question's words, among those the filters keep."""
+        where, parameters = self._where(filters)
+        with self._connect() as conn:
+            rows = conn.execute(
+                WORDS.format(columns=COLUMNS, chunk=self.chunk_table, meta=self.meta_table, where=where,
+                             language=LANGUAGE, stems=stems_table(self.chunk_table)),
+                {"query": query, "limit": limit, "share": WORDS_SHARE, **parameters},
+            ).fetchall()
+        return [(_passage(row), float(row[18])) for row in rows]
+
+    def matches_words(self) -> bool:
+        """Whether the index holds the units' words and their stems (indexes built since 2026-11-03)."""
+        return self._has_column(self.chunk_table, "words") and self._has_column(stems_table(self.chunk_table), "common")
+
+    def dates_revocations(self) -> bool:
+        """Whether the index knows when each revoked document was revoked (indexes built since 2026-11-03)."""
+        return self._has_column(self.meta_table, "revoked_on")
+
+    def _has_column(self, table: str, column: str) -> bool:
+        if (table, column) not in self._columns:
+            with self._connect() as conn:
+                self._columns[(table, column)] = conn.execute(
+                    "select count(*) from information_schema.columns where table_name = %s and column_name = %s",
+                    (table, column),
+                ).fetchone()[0] > 0
+        return self._columns[(table, column)]
+
+    def _where(self, filters: Filters) -> tuple[str, dict[str, Any]]:
+        clauses, parameters = [], {}
+        if filters.kinds:
+            clauses.append("\n  and m.kind = any(%(kinds)s)")
+            parameters["kinds"] = sorted(filters.kinds)
+        if filters.issuers:
+            clauses.append("\n  and c.issuer = any(%(issuers)s)")
+            parameters["issuers"] = sorted(filters.issuers)
+        if filters.documents:
+            clauses.append("\n  and c.document_id = any(%(documents)s)")
+            parameters["documents"] = list(filters.documents)
+        if filters.in_force_on:
+            clauses.append(IN_FORCE.format(revoked=REVOKED_ON if self.dates_revocations() else REVOKED_NOW))
+            parameters["day"] = filters.in_force_on
+        return "".join(clauses), parameters
+
+    def _scans_iteratively(self, conn: psycopg.Connection) -> bool:
+        """pgvector 0.8 and later can keep scanning the graph until enough candidates pass the filters."""
+        if self._iterative is None:
+            row = conn.execute("select extversion from pg_extension where extname = 'vector'").fetchone()
+            self._iterative = bool(row) and tuple(int(part) for part in row[0].split(".")[:2]) >= (0, 8)
+        return self._iterative
+
     def read(self, document_id: str, address: str) -> Passage | None:
-        with psycopg.connect(self.url) as conn:
+        with self._connect() as conn:
             row = conn.execute(
                 READ.format(columns=COLUMNS, chunk=self.chunk_table, meta=self.meta_table),
                 (document_id, address),
@@ -117,18 +222,21 @@ class PostgresStore:
         return _passage(row) if row else None
 
     def document(self, document_id: str) -> dict[str, Any] | None:
-        with psycopg.connect(self.url) as conn:
+        with self._connect() as conn:
             row = conn.execute(
                 DOCUMENT.format(meta=self.meta_table), (document_id,)
             ).fetchone()
         return dict(zip(DOCUMENT_COLUMNS, row, strict=True)) if row else None
 
     def published_at(self):
-        with psycopg.connect(self.url) as conn:
+        with self._connect() as conn:
             return conn.execute(f"select max(published_at) from {self.meta_table}").fetchone()[0]
 
+    def _connect(self, **settings: Any) -> psycopg.Connection:
+        return psycopg.connect(self.url, **({"options": self.options} if self.options else {}), **settings)
+
     def ping(self) -> None:
-        with psycopg.connect(self.url, connect_timeout=2) as conn:
+        with self._connect(connect_timeout=2) as conn:
             conn.execute(f"select 1 from {self.chunk_table} limit 1").fetchone()
 
 

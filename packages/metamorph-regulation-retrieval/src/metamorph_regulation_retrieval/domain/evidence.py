@@ -14,22 +14,29 @@ NO_MATCH = "no_match"
 FILTERS_EXCLUDE_ALL = "filters_exclude_all"
 
 
-def page(items: list[dict[str, Any]], *, warnings: tuple[str, ...] = (), empty_reason: str | None = None):
+def page(
+    items: list[dict[str, Any]],
+    *,
+    warnings: tuple[str, ...] = (),
+    empty_reason: str | None = None,
+    cursor: int | None = None,
+):
     if not items and empty_reason is None:
         empty_reason = NO_MATCH
     return {
         "items": items,
-        "cursor": None,
+        "cursor": None if cursor is None else str(cursor),
         "empty_reason": empty_reason if not items else None,
         "warnings": list(warnings),
     }
 
 
-def hit(passage: Passage, *, rank: int, score: float, provider: str, index_version: str):
+def hit(passage: Passage, *, rank: int, score: float, provider: str, index_version: str,
+        matched_by: list[str] | tuple[str, ...] = ("semantic",)):
     return {
         "rank": rank,
         "score": float(score),
-        "matched_by": ["semantic"],
+        "matched_by": list(matched_by),
         "evidence": evidence(passage, provider=provider, index_version=index_version),
     }
 

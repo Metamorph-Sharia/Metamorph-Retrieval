@@ -8,14 +8,15 @@ Every call to a provider has a time budget. A provider that is late or crashes i
 which; its own errors (an unknown ref, a bad argument) reach the caller as they are. A late provider's work isn't
 stopped, only no longer awaited: each provider bounds its own work too (the market's statement timeout).
 
-Merging several providers' searches or links (reciprocal rank fusion) waits for a second provider that searches or
-links (M5). Until then each goes to the one provider that offers it.
+A search that several providers can answer goes to each of them at once, and their rankings are fused by reciprocal
+rank (fusion.py): a provider's scores mean nothing to another's, its ranks do. A provider that fails leaves the others'
+answer and a warning. Merging several providers' links waits for a second provider that links (M5).
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as Late
 from dataclasses import replace
 from typing import Any, TypeVar
@@ -27,12 +28,13 @@ from metamorph_retrieval_contract.errors import (
     UnknownRef,
     UnknownTool,
 )
-from metamorph_retrieval_contract.evidence import Evidence, Hit, Page, Record
+from metamorph_retrieval_contract.evidence import EmptyReason, Evidence, Hit, Page, Record
 from metamorph_retrieval_contract.links import Link
 from metamorph_retrieval_contract.provider import JSON, Manifest, RetrievalProvider
 from metamorph_retrieval_contract.refs import Ref
-from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest
+from metamorph_retrieval_contract.requests import MAX_LIMIT, LinksRequest, SearchRequest
 from metamorph_retrieval_gateway.application.enrichment import MAX_NAMED, card_fields, cited, named, past_budget
+from metamorph_retrieval_gateway.application.fusion import fused_page, offset_of
 
 T = TypeVar("T")
 
@@ -77,8 +79,31 @@ class Gateway:
         if unheld:
             raise CapabilityMissing(f"no provider searches {', '.join(unheld)}; the kinds searched are "
                                     f"{', '.join(searchable)}")
-        (name,) = [name for name, kinds in holders.items() if kinds & asked]  # one until M5
-        return self._ask(name, lambda: self.providers[name].search(replace(request, kinds=asked)))
+        asked_of = {name: kinds & asked for name, kinds in holders.items() if kinds & asked}
+        if len(asked_of) == 1:
+            ((name, kinds),) = asked_of.items()
+            return self._ask(name, lambda: self.providers[name].search(replace(request, kinds=kinds)))
+        return self._federated(request, asked_of)
+
+    def _federated(self, request: SearchRequest, asked_of: Mapping[str, frozenset[str]]) -> Page[Hit]:
+        """Each provider's first pages, fused, and the slice the cursor asks for."""
+        start = offset_of(request.cursor)
+        enough = min(start + request.limit, MAX_LIMIT)
+        answers = self._ask_each({name: (lambda name=name, kinds=kinds: self.providers[name].search(
+            replace(request, kinds=kinds, limit=enough, cursor=None))) for name, kinds in asked_of.items()})
+        pages = {name: answer for name, answer in answers.items() if isinstance(answer, Page)}
+        failed = {name: answer for name, answer in answers.items() if not isinstance(answer, Page)}
+        if not pages:
+            raise next(iter(failed.values()))
+        warnings = [f"{name}: {warning}" for name, page in sorted(pages.items()) for warning in page.warnings]
+        warnings += [f"{name}: {error.message}" for name, error in sorted(failed.items())]
+        if failed and not any(page.items for page in pages.values()):
+            raise next(iter(failed.values()))  # nothing found by those that answered says nothing about the rest
+        reasons = {page.empty_reason for page in pages.values() if not page.items}
+        why_empty = EmptyReason.FILTERS_EXCLUDE_ALL if reasons == {EmptyReason.FILTERS_EXCLUDE_ALL} \
+            else EmptyReason.NO_MATCH
+        return fused_page([pages[name] for name in sorted(pages)], start=start, limit=request.limit,
+                          warnings=tuple(warnings), why_empty=why_empty)
 
     def read(self, ref: Ref, *, window: int = 0) -> Evidence:
         name = self._owner(ref)
@@ -138,7 +163,20 @@ class Gateway:
 
     def _ask(self, name: str, question: Callable[[], T]) -> T:
         """One call to one provider, within the time budget."""
-        answer = self.workers.submit(question)
+        return self._answer(name, self.workers.submit(question))
+
+    def _ask_each(self, questions: Mapping[str, Callable[[], T]]) -> dict[str, T | ProviderUnavailable]:
+        """Several providers at once, each within the time budget: each one's answer, or why it gave none."""
+        asked = {name: self.workers.submit(question) for name, question in questions.items()}
+        answers: dict[str, T | ProviderUnavailable] = {}
+        for name, answer in asked.items():
+            try:
+                answers[name] = self._answer(name, answer)
+            except ProviderUnavailable as unavailable:
+                answers[name] = unavailable
+        return answers
+
+    def _answer(self, name: str, answer: Future[T]) -> T:
         try:
             return answer.result(timeout=self.timeout)
         except Late:

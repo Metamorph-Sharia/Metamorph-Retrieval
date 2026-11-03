@@ -1,11 +1,13 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
-from metamorph_regulation_retrieval.adapters.provider import FIND, RegulationProvider
+from metamorph_regulation_retrieval.adapters.provider import FIND, NO_WORDS, NOT_DATED, RegulationProvider
+from metamorph_regulation_retrieval.domain.filters import NO_FILTERS, Filters
 from metamorph_regulation_retrieval.domain.passage import Passage
 from metamorph_retrieval_contract.conformance import Samples, ToolCall, conformance_problems
 from metamorph_retrieval_contract.errors import CapabilityMissing, UnknownRef, UnknownTool
+from metamorph_retrieval_contract.evidence import LegalForce
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest, Sort
 
@@ -33,8 +35,31 @@ PASSAGES = [
 
 
 class FakeStore:
-    def search(self, vector, limit):
-        return [(passage, 0.8 - index / 100) for index, passage in enumerate(PASSAGES[:limit])]
+    """Finds every passage by meaning, in order; by words, those holding a word of the question."""
+
+    def __init__(self, *, dated: bool = True, words: bool = True) -> None:
+        self.asked: list[Filters] = []
+        self.dated = dated
+        self.words = words
+
+    def by_meaning(self, vector, limit, filters=NO_FILTERS):
+        self.asked.append(filters)
+        return [(passage, 0.8 - index / 100) for index, passage in enumerate(self._kept(filters)[:limit])]
+
+    def by_words(self, query, limit, filters=NO_FILTERS):
+        asked = set(query.lower().split())
+        held = [passage for passage in self._kept(filters) if asked & set(passage.text.lower().rstrip(".").split())]
+        return [(passage, 1.0) for passage in held[:limit]]
+
+    def matches_words(self):
+        return self.words
+
+    def dates_revocations(self):
+        return self.dated
+
+    @staticmethod
+    def _kept(filters):
+        return [passage for passage in PASSAGES if not filters.kinds or passage.doc_kind in filters.kinds]
 
     def read(self, document_id, address):
         return next(
@@ -60,8 +85,8 @@ class FakeEmbedder:
         return [0.0] * 1024
 
 
-def provider() -> RegulationProvider:
-    return RegulationProvider(FakeStore(), FakeEmbedder())
+def provider(store: FakeStore | None = None) -> RegulationProvider:
+    return RegulationProvider(store or FakeStore(), FakeEmbedder())
 
 
 SAMPLES = Samples(
@@ -94,10 +119,69 @@ def test_search_returns_ranked_evidence() -> None:
 
 
 def test_search_warns_about_filters_it_cannot_apply() -> None:
-    page = provider().search(SearchRequest("batas", documents=(Ref.parse(f"doc:{DOC}"),), sort=Sort.NEWEST))
+    page = provider().search(SearchRequest("batas", published_from=date(2024, 1, 1), sort=Sort.NEWEST))
 
-    assert any("documents" in warning for warning in page.warnings)
-    assert any("sort" in warning for warning in page.warnings)
+    assert any(warning.startswith("published_from") for warning in page.warnings)
+    assert any(warning.startswith("sort") for warning in page.warnings)
+
+
+def test_the_filters_reach_the_store() -> None:
+    store = FakeStore()
+    page = provider(store).search(SearchRequest(
+        "batas", issuers=frozenset({"ojk"}), documents=(Ref.parse(f"doc:{DOC}"),), in_force_on=date(2025, 3, 1)))
+
+    assert store.asked == [Filters(issuers=frozenset({"ojk"}), documents=(DOC,),
+                                   in_force_on=date(2025, 3, 1))]
+    assert page.warnings == ()
+
+
+def test_legal_force_narrows_the_kinds() -> None:
+    store = FakeStore()
+    provider(store).search(SearchRequest("batas", legal_force=frozenset({LegalForce.SHARIA})))
+
+    assert store.asked[0].kinds == frozenset({"fatwa", "guideline", "circular"})
+
+
+def test_legal_force_no_regulation_has_is_an_empty_page_without_a_search() -> None:
+    store = FakeStore()
+    page = provider(store).search(SearchRequest("batas", legal_force=frozenset({LegalForce.NONE})))
+
+    assert page.empty_reason.value == "filters_exclude_all" and store.asked == []
+
+
+def test_a_search_without_filters_that_finds_nothing_is_no_match() -> None:
+    page = provider(FakeStore()).search(SearchRequest("batas", cursor="5"))
+
+    assert page.items == () and page.empty_reason.value == "no_match"
+
+
+def test_an_index_without_revocation_dates_says_what_in_force_on_kept() -> None:
+    page = provider(FakeStore(dated=False)).search(SearchRequest("batas", in_force_on=date(2024, 6, 1)))
+
+    assert page.warnings == (NOT_DATED,)
+
+
+def test_a_unit_found_by_words_and_by_meaning_ranks_first_and_says_so() -> None:
+    page = provider().search(SearchRequest("kualitas"))  # only ayat (4) holds the word
+
+    assert page.items[0].evidence.ref == Ref.parse(f"doc:{DOC}#pasal-137/ayat-4")
+    assert {matched.value for matched in page.items[0].matched_by} == {"words", "semantic"}
+    assert {matched.value for matched in page.items[1].matched_by} == {"semantic"}
+
+
+def test_an_index_without_words_searches_by_meaning_and_says_so() -> None:
+    page = provider(FakeStore(words=False)).search(SearchRequest("kualitas"))
+
+    assert page.items[0].evidence.ref == Ref.parse(f"doc:{DOC}#pasal-137/ayat-3")
+    assert page.warnings == (NO_WORDS,)
+
+
+def test_the_cursor_gives_the_next_page() -> None:
+    first = provider().search(SearchRequest("batas", limit=1))
+    second = provider().search(SearchRequest("batas", limit=1, cursor=first.cursor))
+
+    assert [hit.rank for hit in second.items] == [2]
+    assert second.items[0].evidence.ref == Ref.parse(f"doc:{DOC}#pasal-137/ayat-4")
 
 
 def test_a_kind_filter_that_removes_everything_says_so() -> None:

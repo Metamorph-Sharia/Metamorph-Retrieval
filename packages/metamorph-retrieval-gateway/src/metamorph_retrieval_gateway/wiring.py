@@ -1,11 +1,12 @@
 """Building the gateway from the environment: the one place that knows which providers are joined.
 
-    METAMORPH_RETRIEVAL_PROVIDERS   module:function factories, comma separated (default: the market provider and the
-                                    regulation stand-in, each reading METAMORPH_RETRIEVAL_DATABASE_URL)
+    METAMORPH_RETRIEVAL_PROVIDERS   module:function factories, comma separated (default: the market provider, reading
+                                    METAMORPH_RETRIEVAL_DATABASE_URL, and the regulation provider, reading its index at
+                                    METAMORPH_REGULATION_INDEX_URL or the same database)
     METAMORPH_RETRIEVAL_TIMEOUT     seconds a provider has to answer one call (default 10)
     METAMORPH_RETRIEVAL_CALL_LOG    the call log's directory (default var/call-log)
 
-Providers are named, not imported, so the gateway depends on no provider: Friend 2's joins by adding its factory.
+Providers are named, not imported, so the gateway depends on no provider: a new one joins by adding its factory.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ PROVIDERS = "METAMORPH_RETRIEVAL_PROVIDERS"
 TIMEOUT_SECONDS = "METAMORPH_RETRIEVAL_TIMEOUT"
 CALL_LOG = "METAMORPH_RETRIEVAL_CALL_LOG"
 DEFAULT_PROVIDERS = ("metamorph_market_retrieval.wiring:market_provider,"
-                     "metamorph_regulation_standin.wiring:standin_provider")
+                     "metamorph_regulation_retrieval.wiring:regulation_provider")
 DEFAULT_CALL_LOG = "var/call-log"
 EXAMPLE = "metamorph_market_retrieval.wiring:market_provider"
 

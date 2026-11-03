@@ -1,6 +1,13 @@
 """One chunk per provision: clean the text, flag what is not worth searching, and
 build the context the model sees.
 
+Every provision is a chunk, so any published address can be read. Only the
+platform's retrieval units are searched (`published.provision_unit`: the smallest
+provisions with wording of their own, a paragraph holding its lettered items),
+since a doc: ref's address is a unit's (the retrieval contract). A paragraph and
+the article holding it then never compete for one place in a ranking, and neither
+does an item with its paragraph.
+
 The recipe is the one measured on the benchmark: the provision's own wording,
 prefixed with its document title and the address written as a lawyer writes it.
 Splitting over-long provisions was tested and lost on ranking, so it is not done
@@ -23,22 +30,41 @@ STRUCTURAL = re.compile(
 )
 NO_INFORMATION = {"cukup jelas", "dihapus", "tidak ada", "tidak diatur", "-", ""}
 
-# A chunk is searchable unless it is one of these. `cukup_jelas` is the bulk of
-# the exclusions: an article that says "sufficiently clear" carries no text.
-UNSEARCHABLE = {"no_information", "cukup_jelas", "dihapus", "structural"}
+# A chunk is searchable unless it is one of these. `not_a_unit` is the bulk: an
+# article holding paragraphs, or an item inside one. Of the rest, `cukup_jelas` is
+# most: an article that says "sufficiently clear" carries no text.
+UNSEARCHABLE = {"not_a_unit", "no_information", "cukup_jelas", "dihapus", "structural"}
+
+LANGUAGE = "indonesian"  # the regulations' language; its stemmer joins pembiayaan and dibiayai
+# The stems a word search can use: each stem's number of units, and whether it is common. Its stop words are the
+# corpus's own (yang, dan, pada, but also pasal, ayat, wajib): the `indonesian` configuration keeps every word, and
+# a stem most units hold tells a search little while making it match nearly everything.
+COMMON_SHARE = 0.05
+STEMS_DDL = """
+create table {stems} as
+select word, ndoc, ndoc > {share} * (select count(*) from {chunks} where searchable) as common
+from ts_stat('select words from {chunks} where searchable')
+"""
 
 PROVISIONS = """
 select p.document_id, p.text_sha256, p.address, p.kind, p.label, p.heading,
-       d.issuer, d.status, p.valid_from, p.valid_to, p.body, d.title, d.citation
+       d.issuer, d.status, p.valid_from, p.valid_to, p.body, d.title, d.citation,
+       u.address is not null as unit
 from published.provision p
 join published.document d on d.id = p.document_id
+left join published.provision_unit u on u.document_id = p.document_id and u.address = p.address
 where p.body <> '' and p.document_id <> all(%s)
 order by p.document_id, p.address
 """
 
+# `revoked_on` is the earliest dated revocation of the whole document; `in_force_on`
+# filters on it. A document revoked without a dated event has none, and counts as
+# revoked on any day (its status says so today, and nothing says since when).
 DOCUMENTS = """
 select d.id, d.kind, d.citation, d.title, d.issuer, d.status, d.family, d.number,
-       d.year, d.promulgated_on, d.effective_on, d.published_at, d.aliases
+       d.year, d.promulgated_on, d.effective_on, d.published_at, d.aliases,
+       (select min(e.effective_from) from published.status_event e
+        where e.document_id = d.id and e.address is null and e.status = 'revoked') as revoked_on
 from published.document d
 where d.id <> all(%s)
 order by d.id
@@ -70,7 +96,9 @@ create table {table} (
   context_hash text not null,
   token_count integer not null,
   searchable boolean not null,
-  flags text[] not null
+  flags text[] not null,
+  words tsvector generated always as (
+    case when searchable then to_tsvector('""" + LANGUAGE + """', context_text) end) stored
 )
 """
 
@@ -88,7 +116,8 @@ create table {table} (
   promulgated_on date,
   effective_on date,
   published_at timestamptz,
-  aliases text[]
+  aliases text[],
+  revoked_on date
 )
 """
 
@@ -108,6 +137,7 @@ class Provision:
     body: str
     title: str
     citation: str | None
+    unit: bool = True  # a retrieval unit (published.provision_unit)
 
 
 @dataclass(frozen=True)
@@ -214,6 +244,8 @@ def significance_flags(body: str, label: str | None, heading: str | None) -> lis
 def chunk(provision: Provision, snapshot: str) -> Chunk:
     body, had_page_markers = clean(provision.body)
     flags = significance_flags(body, provision.label, provision.heading)
+    if not provision.unit:
+        flags.append("not_a_unit")
     if had_page_markers:
         flags.append("page_markers_removed")
     context = f"{provision.title}\n{provision_label(provision.address)}\n{body}"
