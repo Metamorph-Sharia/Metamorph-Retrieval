@@ -67,21 +67,31 @@ Run it from Metamorph-Knowledge-Platform, with the helpers of its `docs/aws-depl
 
 ### 4. The regulation index
 
-5. Build and activate it in the `metamorph-retrieval` task. Embedding about 180,000 retrieval units on 2 vCPU takes several hours (about 4.4 h measured on 2 threads of a Mac). Every published document is included, UU 27/2022 too.
+Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-03), so a first build there would take more than a day. Vectors move between builds by chunk instead. A chunk's id names its document, its text, its address and its wording, so its vector is the same wherever it is built. So the first build is seeded with vectors made where embedding is fast, and the task embeds only the chunks they don't cover. A later refresh embeds only what changed.
+
+5. On a machine with a GPU, build the index, or keep one built, then export its vectors and share them through the operations bucket:
+   ```bash
+   metamorph-regulation-index export-vectors --snapshot <its snapshot> --to vectors.copy.gz
+   aws s3 cp vectors.copy.gz s3://metamorph-ops-<account>/transfer/retrieval/regulation-vectors-$SNAPSHOT.copy.gz
+   URL=$(aws s3 presign s3://metamorph-ops-<account>/transfer/retrieval/regulation-vectors-$SNAPSHOT.copy.gz --expires-in 21600)
+   ```
+   - The presigned link lets the task read the file without a role of its own.
+   - The file is gzipped `COPY` text: chunk id, then vector. About 840 MB for 180,000 units.
+6. Build and activate the snapshot in the `metamorph-retrieval` task. Every published document is included, UU 27/2022 too.
    ```bash
    SNAPSHOT=$(date -u +%Y-%m-%d)
    aws ecs run-task --cluster metamorph --task-definition metamorph-retrieval --launch-type FARGATE \
      --network-configuration "awsvpcConfiguration={subnets=[$(exported metamorph-subnets | cut -d, -f1)],securityGroups=[$(exported metamorph-sg-retrieval)],assignPublicIp=ENABLED}" \
-     --overrides "{\"containerOverrides\":[{\"name\":\"main\",\"command\":[\"sh\",\"-c\",\"metamorph-regulation-index build --snapshot $SNAPSHOT && metamorph-regulation-index activate --snapshot $SNAPSHOT\"]}]}" \
+     --overrides "{\"containerOverrides\":[{\"name\":\"main\",\"command\":[\"sh\",\"-c\",\"metamorph-regulation-index build --snapshot $SNAPSHOT --vectors '$URL' && metamorph-regulation-index activate --snapshot $SNAPSHOT\"]}]}" \
      --tags key=Owner,value=project3
    ```
-   - **The first build activates without a judgement:** there is no active index to compare with.
-   - **Later builds** run `scripts/refresh-regulation-index.sh`, which judges the new snapshot against the active one before it activates it.
+   - **The log** says how many vectors were taken, then embeds the rest.
+   - **The first build activates without a judgement:** there is no active index to compare with. Later builds run `scripts/refresh-regulation-index.sh`, which judges the new snapshot against the active one before activating it.
    - **Check:** `metamorph-regulation-index versions` lists the snapshot as `live`.
 
 ### 5. The gate, inside the VPC
 
-6. Both question sets through the gateway, built in the task as `serve` builds it, with the gateway task's settings. Override the command of a `metamorph-retrieval` task with:
+7. Both question sets through the gateway, built in the task as `serve` builds it, with the gateway task's settings. Override the command of a `metamorph-retrieval` task with:
    ```bash
    export METAMORPH_RETRIEVAL_RERANKER=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
    metamorph-eval run eval/regulation/cases.jsonl --provider metamorph_retrieval_gateway.wiring:gateway_from_environment
@@ -97,13 +107,13 @@ Run it from Metamorph-Knowledge-Platform, with the helpers of its `docs/aws-depl
 
 ### 6. The gateway on
 
-7. Start it:
+8. Start it:
    ```bash
    deploy retrieval --parameter-overrides RetrievalTag=$TAG GatewayCount=1
    ```
    - The circuit breaker rolls a failed start back.
    - **Health:** the target answers `/health`. The log shows both providers and the reranker loaded.
-8. Move the development service to the new revision:
+9. Move the development service to the new revision:
    ```bash
    REVISION=$(aws ecs describe-task-definition --task-definition metamorph-retrieval-gateway --query taskDefinition.revision --output text)
    deploy dev/retrieval --parameter-overrides GatewayTask=metamorph-retrieval-gateway:$REVISION

@@ -1,6 +1,8 @@
 """`metamorph-regulation-index`: build the regulation index, judge it, activate it.
 
     metamorph-regulation-index build --snapshot 2026-11-03
+    metamorph-regulation-index build --snapshot 2026-11-03 --vectors https://…   seeded with another build's vectors
+    metamorph-regulation-index export-vectors --snapshot 2026-11-03 --to vectors.copy.gz
     metamorph-regulation-index judge --cases cases.jsonl --snapshot 2026-11-03
     metamorph-regulation-index activate --snapshot 2026-11-03
     metamorph-regulation-index versions
@@ -21,7 +23,7 @@ import psycopg
 from . import build as builder
 from .build import Tables
 from .config import index_url, snapshot_id, table_name
-from .embed import MODELS, create_table, embed, index_vectors, load_model
+from .embed import MODELS, create_table, embed, export_vectors, import_vectors, index_vectors, load_model, open_vectors
 from .judge import load_cases, measure, worse_than
 
 WORSE = 3
@@ -37,6 +39,14 @@ def main(argv: list[str] | None = None) -> int:
     build.add_argument("--model", default="bge_m3", choices=sorted(MODELS))
     build.add_argument("--limit", type=int, default=0, help="stop after N provisions, for a smoke build")
     build.add_argument("--skip-embed", action="store_true")
+    build.add_argument("--vectors", default="", help="another build's vectors (export-vectors), a path or an https "
+                       "URL: chunks they cover aren't embedded again")
+
+    export = commands.add_parser("export-vectors", help="write a snapshot's vectors, for another build to take")
+    export.add_argument("--snapshot", default=snapshot_id())
+    export.add_argument("--to", required=True)
+    export.add_argument("--chunk-table", default="", help="instead of the snapshot's")
+    export.add_argument("--embed-table", default="", help="instead of the snapshot's")
 
     judge = commands.add_parser("judge", help="compare a snapshot with the active one")
     judge.add_argument("--cases", required=True)
@@ -62,6 +72,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "build":
         return _build(args)
+    if args.command == "export-vectors":
+        return _export_vectors(args)
     if args.command == "judge":
         return _judge(args)
     if args.command == "activate":
@@ -87,6 +99,10 @@ def _build(args: argparse.Namespace) -> int:
         with psycopg.connect(index_url()) as conn:
             create_table(conn, table_name(tables.embeddings), MODELS[args.model]["dim"])
             conn.commit()
+            if args.vectors:
+                with open_vectors(args.vectors) as source:
+                    taken = import_vectors(conn, tables.chunks, tables.embeddings, source, MODELS[args.model]["dim"])
+                print(f"vectors taken from {args.vectors.split('?')[0]}: {taken:,}", flush=True)
             embed(conn, tables.chunks, tables.embeddings, model)
             index_vectors(conn, table_name(tables.embeddings), MODELS[args.model]["dim"])
             conn.commit()
@@ -97,6 +113,16 @@ def _build(args: argparse.Namespace) -> int:
         return 1
     builder.record(args.snapshot, tables, "ready")
     print(json.dumps({"snapshot": args.snapshot, "chunks": count, "tables": tables.__dict__}))
+    return 0
+
+
+def _export_vectors(args: argparse.Namespace) -> int:
+    tables = Tables.for_snapshot(args.snapshot)
+    chunks = table_name(args.chunk_table or tables.chunks)
+    embeddings = table_name(args.embed_table or tables.embeddings)
+    with psycopg.connect(index_url()) as conn, open(args.to, "wb") as out:
+        written = export_vectors(conn, chunks, embeddings, out)
+    print(f"{written:,} vectors to {args.to}")
     return 0
 
 
