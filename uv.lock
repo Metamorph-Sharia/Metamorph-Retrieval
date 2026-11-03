@@ -702,7 +702,6 @@ name = "metamorph-regulation-retrieval"
 version = "0.1.0"
 source = { editable = "packages/metamorph-regulation-retrieval" }
 dependencies = [
-    { name = "httpx" },
     { name = "metamorph-retrieval-contract" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
@@ -717,7 +716,6 @@ embeddings = [
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
     { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
     { name = "pgvector", specifier = ">=0.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },

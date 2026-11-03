@@ -5,7 +5,6 @@ description = "The regulatory provider: regulations and fatwas, clause by clause
 requires-python = ">=3.11"
 dependencies = [
     "metamorph-retrieval-contract",
-    "httpx>=0.27",
     "psycopg[binary]>=3.2",
     "pgvector>=0.3",
 ]

@@ -1,28 +1,32 @@
-"""The regulatory provider: our retrieval service, spoken through the contract.
+"""The regulatory provider: regulations and fatwas, clause by clause.
 
-The index, the embedding model and the clause ranking stay in the regulation retrieval service; this adapter is the
-provider the gateway composes. It maps requests and errors, and nothing else. That keeps one copy of the retrieval
-logic and one set of shapes, and it lets the gateway stay a composition layer rather than a search engine.
-
-Search and read are the contract's operations, so they are not declared again as tools. `find_provision` is ours: an
-exact citation lookup ("POJK 40/2024 Pasal 137 ayat (3)") that a similarity search cannot do reliably.
+The provider owns the query. It embeds the question with bge-m3 in this process,
+asks the index for candidates, rescoring them in full precision, and returns the
+contract's evidence. There is no separate retrieval service.
 """
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping, Sequence
-from dataclasses import replace
-from datetime import UTC, date, datetime
 from typing import Any
 
-import httpx
-
+from metamorph_regulation_retrieval.domain.citations import parse_citation
+from metamorph_regulation_retrieval.domain.evidence import (
+    FILTERS_EXCLUDE_ALL,
+    NO_MATCH,
+    document_evidence,
+    evidence,
+    hit,
+    page,
+)
+from metamorph_regulation_retrieval.domain.legal import provision_label
+from metamorph_regulation_retrieval.domain.refs import RefError
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import (
     CapabilityMissing,
     InvalidArgument,
     ProviderUnavailable,
-    RetrievalError,
     UnknownRef,
     UnknownTool,
 )
@@ -34,82 +38,94 @@ from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest, S
 
 NAME = "regulation-retrieval"
 VERSION = "0.1.0"
-SEARCH = "search_regulations"
-READ = "read_regulation"
+INDEX_VERSION = "METAMORPH_REGULATION_INDEX_VERSION"
+DEFAULT_INDEX_VERSION = "regulation-index"
 FIND = "find_provision"
-DEFAULT_TIMEOUT = 10.0
+KINDS = ("law", "regulation", "implementing_rule", "fatwa", "guideline", "circular", "explanatory")
 
-ERRORS: dict[str, type[RetrievalError]] = {
-    "invalid_argument": InvalidArgument,
-    "unknown_ref": UnknownRef,
-    "unknown_tool": UnknownTool,
-    "capability_missing": CapabilityMissing,
-    "provider_unavailable": ProviderUnavailable,
-}
+FIND_TOOL = ToolSpec(
+    name=FIND,
+    version="0.1",
+    description=(
+        "Resolve a legal citation to its exact provision: 'POJK 40/2024 Pasal 137 ayat (3)', "
+        "'Fatwa 117', 'UU 27/2022 Pasal 5'. Use this when the question names the regulation; it "
+        "does not depend on similarity."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {"citation": {"type": "string", "minLength": 4, "maxLength": 400}},
+        "required": ["citation"],
+        "additionalProperties": False,
+    },
+    output_schema={"type": "object"},
+)
 
 
 class RegulationProvider:
-    """The retrieval service as a provider. One HTTP client, one cached manifest."""
+    """Search and read over the regulation index. The store and embedder are ports."""
 
-    def __init__(
-        self,
-        base_url: str,
-        *,
-        token: str | None = None,
-        timeout: float = DEFAULT_TIMEOUT,
-        client: httpx.Client | None = None,
-    ) -> None:
-        headers = {"Authorization": f"Bearer {token}"} if token else {}
-        self._client = client or httpx.Client(base_url=base_url, headers=headers, timeout=timeout)
-        self._manifest: Manifest | None = None
+    def __init__(self, store, embedder, *, name: str = NAME, index_version: str | None = None) -> None:
+        self.store = store
+        self.embedder = embedder
+        self.name = name
+        self.index_version = index_version or os.environ.get(INDEX_VERSION) or DEFAULT_INDEX_VERSION
 
-    # -- what it offers ---------------------------------------------------
+    # -- manifest ---------------------------------------------------------
 
     def manifest(self) -> Manifest:
-        if self._manifest is None:
-            data = self._get("/manifest")
-            self._manifest = Manifest(
-                name=data["name"],
-                version=data["version"],
-                namespaces=frozenset(data["namespaces"]),
-                kinds=frozenset(data["kinds"]),
-                links=bool(data.get("links")),
-                tools=_own_tools(data.get("tools") or ()),
-                index_version=data["index_version"],
-                data_as_of=_datetime(data.get("data_as_of")),
-            )
-        return self._manifest
+        return Manifest(
+            name=self.name,
+            version=VERSION,
+            namespaces=frozenset({"doc"}),
+            kinds=frozenset(KINDS),
+            links=False,
+            tools=(FIND_TOOL,),
+            index_version=self.index_version,
+            data_as_of=self.store.published_at(),
+        )
+
+    # -- operations -------------------------------------------------------
 
     def search(self, request: SearchRequest) -> Page[Hit]:
-        arguments: JSON = {"query": request.query, "limit": request.limit}
-        warnings: list[str] = []
+        warnings = _unsupported(request)
+        try:
+            vector = self.embedder.encode(request.query)
+            rows = self.store.search(vector, request.limit)
+        except Exception as error:  # noqa: BLE001 - a failed query is ours, not the caller's
+            raise ProviderUnavailable(f"{NAME} could not search: {type(error).__name__}") from error
 
-        if request.kinds:
-            arguments["kinds"] = sorted(request.kinds)
-        if request.issuers:
-            arguments["issuers"] = sorted(request.issuers)
-        if request.in_force_on:
-            arguments["in_force_on"] = request.in_force_on.isoformat()
-        if request.documents:
-            warnings.append(
-                "documents: not applied; this provider searches the whole corpus, "
-                "so narrow with in_force_on or kinds"
-            )
-        if request.published_from or request.published_to:
-            warnings.append("published_from/published_to: not applied; validity is filtered with in_force_on")
-        if request.legal_force:
-            warnings.append(
-                "legal_force: not applied; filter on kinds instead "
-                "(fatwa is sharia, regulation is binding)"
-            )
-        if request.sort is not Sort.RELEVANCE:
-            warnings.append("sort: newest is not offered; results are ranked by relevance")
+        rows = [
+            (passage, score)
+            for passage, score in rows
+            if (not request.kinds or passage.doc_kind in request.kinds)
+            and (not request.issuers or passage.issuer in request.issuers)
+        ][: request.limit]
 
-        page = codec.hits_from_dict(self._post(f"/tools/{SEARCH}", arguments))
-        return replace(page, warnings=tuple(page.warnings) + tuple(warnings))
+        if not rows:
+            reason = FILTERS_EXCLUDE_ALL if (request.kinds or request.issuers) else NO_MATCH
+            return codec.hits_from_dict(page([], warnings=tuple(warnings), empty_reason=reason))
+
+        items = [
+            hit(passage, rank=rank, score=score, provider=self.name, index_version=self.index_version)
+            for rank, (passage, score) in enumerate(rows, start=1)
+        ]
+        return codec.hits_from_dict(page(items, warnings=tuple(warnings)))
 
     def read(self, ref: Ref, *, window: int = 0) -> Evidence:
-        return codec.evidence_from_dict(self._post(f"/tools/{READ}", {"ref": str(ref), "window": window}))
+        if ref.address is None:
+            document = self._document(ref)
+            return codec.evidence_from_dict(
+                document_evidence(document, provider=self.name, index_version=self.index_version)
+            )
+        try:
+            passage = self.store.read(ref.id, ref.address)
+        except Exception as error:  # noqa: BLE001
+            raise ProviderUnavailable(f"{NAME} could not read: {type(error).__name__}") from error
+        if passage is None:
+            raise UnknownRef(f"{ref}: nothing is published at that address")
+        return codec.evidence_from_dict(
+            evidence(passage, provider=self.name, index_version=self.index_version)
+        )
 
     def describe(self, refs: Sequence[Ref]) -> Sequence[Evidence]:
         cards: dict[Ref, Evidence] = {}
@@ -121,70 +137,60 @@ class RegulationProvider:
         return [cards[ref] for ref in refs if ref in cards]
 
     def links(self, ref: Ref, request: LinksRequest) -> Page[Link]:
-        raise CapabilityMissing("links between regulations are not served yet; the platform publishes them and a later "
-                                "version of this provider will answer them")
+        raise CapabilityMissing(
+            "links between regulations are not served yet; the platform publishes them and a later "
+            "version of this provider will answer them"
+        )
 
     def call(self, tool: str, arguments: Mapping[str, Any]) -> JSON:
-        if tool == FIND:
-            return self._post(f"/tools/{FIND}", dict(arguments))
-        raise UnknownTool(f"{NAME} has no tool {tool!r}; it offers {FIND}")
-
-    # -- transport --------------------------------------------------------
-
-    def _get(self, path: str) -> JSON:
+        if tool != FIND:
+            raise UnknownTool(f"{NAME} has no tool {tool!r}; it offers {FIND}")
+        raw = str(arguments.get("citation") or "").strip()
         try:
-            return self._answer(self._client.get(path))
-        except httpx.HTTPError as error:
-            raise ProviderUnavailable(f"{NAME} did not answer: {error}") from error
+            citation = parse_citation(raw)
+        except RefError as error:
+            raise InvalidArgument(str(error)) from error
 
-    def _post(self, path: str, body: Mapping[str, Any]) -> JSON:
+        document = self._document_by_id(citation.document_id, raw)
+        if citation.address is None:
+            return page([document_evidence(document, provider=self.name, index_version=self.index_version)])
+
         try:
-            return self._answer(self._client.post(path, json=dict(body)))
-        except httpx.HTTPError as error:
-            raise ProviderUnavailable(f"{NAME} did not answer: {error}") from error
+            passage = self.store.read(citation.document_id, citation.address)
+        except Exception as error:  # noqa: BLE001
+            raise ProviderUnavailable(f"{NAME} could not read: {type(error).__name__}") from error
+        if passage is None:
+            raise UnknownRef(
+                f"{raw}: {citation.document_id} is published but {provision_label(citation.address)} is not"
+            )
+        return page([evidence(passage, provider=self.name, index_version=self.index_version)])
 
-    def _answer(self, response: httpx.Response) -> JSON:
+    # -- helpers ----------------------------------------------------------
+
+    def _document(self, ref: Ref) -> dict[str, Any]:
+        return self._document_by_id(ref.id, str(ref))
+
+    def _document_by_id(self, document_id: str, shown: str) -> dict[str, Any]:
         try:
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as error:
-            raise _error(response) from error
-        except httpx.HTTPError as error:
-            raise ProviderUnavailable(f"{NAME} did not answer: {error}") from error
-        except ValueError as error:
-            raise ProviderUnavailable(f"{NAME} answered with something that is not JSON") from error
+            document = self.store.document(document_id)
+        except Exception as error:  # noqa: BLE001
+            raise ProviderUnavailable(f"{NAME} could not read: {type(error).__name__}") from error
+        if document is None:
+            raise UnknownRef(f"{shown}: nothing is published under {document_id}")
+        return document
 
 
-def _error(response: httpx.Response) -> RetrievalError:
-    try:
-        body = response.json()
-    except ValueError:
-        return ProviderUnavailable(f"{NAME} failed with HTTP {response.status_code}")
-    code = str(body.get("error") or "")
-    message = str(body.get("message") or f"HTTP {response.status_code}")
-    return ERRORS.get(code, ProviderUnavailable)(message)
-
-
-def _own_tools(declared: Sequence[Mapping[str, Any]]) -> tuple[ToolSpec, ...]:
-    """Only the tools we add. Search and read are the contract's operations and the gateway already serves them."""
-    return tuple(
-        ToolSpec(
-            name=tool["name"],
-            version=tool["version"],
-            description=tool["description"],
-            input_schema=tool["input_schema"],
-            output_schema=tool["output_schema"],
+def _unsupported(request: SearchRequest) -> list[str]:
+    warnings: list[str] = []
+    if request.documents:
+        warnings.append(
+            "documents: not applied; this provider searches the whole corpus, so narrow with kinds or in_force_on"
         )
-        for tool in declared
-        if tool["name"] == FIND
-    )
+    if request.published_from or request.published_to:
+        warnings.append("published_from/published_to: not applied; validity is filtered with in_force_on")
+    if request.legal_force:
+        warnings.append("legal_force: not applied; filter on kinds instead (fatwa is sharia, regulation is binding)")
+    if request.sort is not Sort.RELEVANCE:
+        warnings.append("sort: newest is not offered; results are ranked by relevance")
+    return warnings
 
-
-def _datetime(value: Any) -> datetime | None:
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, date):
-        return datetime(value.year, value.month, value.day, tzinfo=UTC)
-    return datetime.fromisoformat(str(value))
