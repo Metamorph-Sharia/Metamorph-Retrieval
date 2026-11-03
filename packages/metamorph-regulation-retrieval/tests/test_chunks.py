@@ -1,4 +1,4 @@
-from metamorph_regulation_index.chunks import (
+from metamorph_regulation_retrieval.indexing.chunks import (
     Provision,
     chunk,
     clean,

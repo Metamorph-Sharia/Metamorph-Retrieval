@@ -1,4 +1,4 @@
-from metamorph_regulation_index.judge import Score, _found, worse_than
+from metamorph_regulation_retrieval.indexing.judge import Score, _found, worse_than
 
 
 def test_a_small_difference_is_inside_the_tolerance() -> None:

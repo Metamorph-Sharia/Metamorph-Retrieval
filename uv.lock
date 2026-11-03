@@ -14,7 +14,6 @@ resolution-markers = [
 [manifest]
 members = [
     "metamorph-market-retrieval",
-    "metamorph-regulation-index",
     "metamorph-regulation-retrieval",
     "metamorph-regulation-standin",
     "metamorph-retrieval-contract",
@@ -25,7 +24,6 @@ members = [
 [manifest.dependency-groups]
 dev = [
     { name = "metamorph-market-retrieval", extras = ["embeddings"], editable = "packages/metamorph-market-retrieval" },
-    { name = "metamorph-regulation-index", editable = "packages/metamorph-regulation-index" },
     { name = "metamorph-regulation-retrieval", editable = "packages/metamorph-regulation-retrieval" },
     { name = "metamorph-regulation-standin", editable = "packages/metamorph-regulation-standin" },
     { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
@@ -700,10 +698,12 @@ requires-dist = [
 provides-extras = ["embeddings"]
 
 [[package]]
-name = "metamorph-regulation-index"
+name = "metamorph-regulation-retrieval"
 version = "0.1.0"
-source = { editable = "packages/metamorph-regulation-index" }
+source = { editable = "packages/metamorph-regulation-retrieval" }
 dependencies = [
+    { name = "httpx" },
+    { name = "metamorph-retrieval-contract" },
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
 ]
@@ -717,6 +717,8 @@ embeddings = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
     { name = "pgvector", specifier = ">=0.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=3.0" },
@@ -724,21 +726,6 @@ requires-dist = [
     { name = "torch", marker = "sys_platform != 'linux' and extra == 'embeddings'", specifier = ">=2.4" },
 ]
 provides-extras = ["embeddings"]
-
-[[package]]
-name = "metamorph-regulation-retrieval"
-version = "0.1.0"
-source = { editable = "packages/metamorph-regulation-retrieval" }
-dependencies = [
-    { name = "httpx" },
-    { name = "metamorph-retrieval-contract" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
-]
 
 [[package]]
 name = "metamorph-regulation-standin"

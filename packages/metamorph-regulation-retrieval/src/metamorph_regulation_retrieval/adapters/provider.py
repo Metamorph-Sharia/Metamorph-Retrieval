@@ -91,11 +91,17 @@ class RegulationProvider:
         if request.in_force_on:
             arguments["in_force_on"] = request.in_force_on.isoformat()
         if request.documents:
-            warnings.append("documents: not applied; this provider searches the whole corpus, so narrow with in_force_on or kinds")
+            warnings.append(
+                "documents: not applied; this provider searches the whole corpus, "
+                "so narrow with in_force_on or kinds"
+            )
         if request.published_from or request.published_to:
             warnings.append("published_from/published_to: not applied; validity is filtered with in_force_on")
         if request.legal_force:
-            warnings.append("legal_force: not applied; filter on kinds instead (fatwa is sharia, regulation is binding)")
+            warnings.append(
+                "legal_force: not applied; filter on kinds instead "
+                "(fatwa is sharia, regulation is binding)"
+            )
         if request.sort is not Sort.RELEVANCE:
             warnings.append("sort: newest is not offered; results are ranked by relevance")
 
