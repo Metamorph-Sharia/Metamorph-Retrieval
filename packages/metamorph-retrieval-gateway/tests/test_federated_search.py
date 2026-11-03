@@ -39,10 +39,10 @@ def test_each_provider_is_asked_only_for_the_kinds_it_holds() -> None:
 def test_a_search_one_provider_holds_is_that_providers_page() -> None:
     regulations = SearchingRegulations()
     page = Gateway([MemoryProvider(), regulations]).search(SearchRequest(QUESTION, kinds=frozenset({"regulation"}),
-                                                                          cursor="3"))
+                                                                          cursor="0"))
 
     assert refs(page) == [str(POJK_40)]
-    assert regulations.asked[0].cursor == "3"  # its own cursor, untouched
+    assert regulations.asked[0].cursor == "0"  # its own cursor, untouched
 
 
 def test_a_provider_that_fails_leaves_the_others_answer_and_a_warning() -> None:

@@ -26,7 +26,7 @@ dev = [
     { name = "metamorph-regulation-retrieval", editable = "packages/metamorph-regulation-retrieval" },
     { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
     { name = "metamorph-retrieval-eval", editable = "packages/metamorph-retrieval-eval" },
-    { name = "metamorph-retrieval-gateway", editable = "packages/metamorph-retrieval-gateway" },
+    { name = "metamorph-retrieval-gateway", extras = ["rerank"], editable = "packages/metamorph-retrieval-gateway" },
     { name = "opentelemetry-sdk", specifier = ">=1.25" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
@@ -762,15 +762,26 @@ dependencies = [
     { name = "uvicorn" },
 ]
 
+[package.optional-dependencies]
+rerank = [
+    { name = "sentence-transformers" },
+    { name = "torch", version = "2.15.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
+    { name = "torch", version = "2.15.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=1.10" },
     { name = "metamorph-retrieval-contract", editable = "packages/metamorph-retrieval-contract" },
     { name = "opentelemetry-api", specifier = ">=1.25" },
+    { name = "sentence-transformers", marker = "extra == 'rerank'", specifier = ">=3.0" },
     { name = "starlette", specifier = ">=0.37" },
+    { name = "torch", marker = "sys_platform == 'linux' and extra == 'rerank'", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "sys_platform != 'linux' and extra == 'rerank'", specifier = ">=2.4" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]
+provides-extras = ["rerank"]
 
 [[package]]
 name = "mpmath"

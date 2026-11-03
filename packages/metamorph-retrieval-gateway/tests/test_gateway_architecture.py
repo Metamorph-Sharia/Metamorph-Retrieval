@@ -10,7 +10,7 @@ PACKAGE = Path(__file__).resolve().parents[1] / "src" / "metamorph_retrieval_gat
 OWN = "metamorph_retrieval_gateway"
 CONTRACT = "metamorph_retrieval_contract"
 ADAPTERS = {CONTRACT, f"{OWN}.application", f"{OWN}.adapters", "mcp", "mcp_types", "starlette", "anyio",
-            "opentelemetry"}
+            "opentelemetry", "sentence_transformers"}
 PROVIDERS = ("metamorph_market_retrieval", "metamorph_regulation_retrieval")
 
 

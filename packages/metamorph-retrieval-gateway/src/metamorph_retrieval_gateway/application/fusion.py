@@ -1,4 +1,4 @@
-"""Several providers' rankings as one: reciprocal rank fusion, and the gateway's cursor over the fused ranking.
+"""Several providers' rankings as one: reciprocal rank fusion, and the gateway's cursor over a ranking it made.
 
 A provider's score is comparable only within its own call (the contract), so fusion uses ranks alone: each hit scores
 1 / (k + rank) in each ranking it appears in. Equal scores keep the providers' order, then their ranks.
@@ -19,7 +19,12 @@ CURSOR = "fused:"
 def fused_page(pages: Sequence[Page[Hit]], *, start: int, limit: int, warnings: tuple[str, ...],
                why_empty: EmptyReason) -> Page[Hit]:
     """The fused ranking from `start`, `limit` hits long, ranked anew from 1 and scored by fusion."""
-    ranked = fuse(pages)
+    return ranked_page(fuse(pages), start=start, limit=limit, warnings=warnings, why_empty=why_empty)
+
+
+def ranked_page(ranked: Sequence[tuple[Hit, float]], *, start: int, limit: int, warnings: tuple[str, ...],
+                why_empty: EmptyReason) -> Page[Hit]:
+    """A ranking the gateway made, from `start`, `limit` hits long, ranked anew from 1, with its scores."""
     chosen = ranked[start:start + limit]
     if not chosen:
         return Page.empty(why_empty if not ranked else EmptyReason.NO_MATCH, warnings)

@@ -11,6 +11,10 @@ stopped, only no longer awaited: each provider bounds its own work too (the mark
 A search that several providers can answer goes to each of them at once, and their rankings are fused by reciprocal
 rank (fusion.py): a provider's scores mean nothing to another's, its ranks do. A provider that fails leaves the others'
 answer and a warning. Merging several providers' links waits for a second provider that links (M5).
+
+With a reranker (reranking.py), every search's candidates, each provider's first ones fused, are put in the
+reranker's order, which holds across providers as ranks don't. A reranker that fails or is late leaves the fused
+order, with a warning: reranking improves a search, it never stops one.
 """
 
 from __future__ import annotations
@@ -34,7 +38,9 @@ from metamorph_retrieval_contract.provider import JSON, Manifest, RetrievalProvi
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import MAX_LIMIT, LinksRequest, SearchRequest
 from metamorph_retrieval_gateway.application.enrichment import MAX_NAMED, card_fields, cited, named, past_budget
-from metamorph_retrieval_gateway.application.fusion import fused_page, offset_of
+from metamorph_retrieval_gateway.application.fusion import fuse, fused_page, offset_of, ranked_page
+from metamorph_retrieval_gateway.application.reranking import CANDIDATES, NOT_RERANKED, Reranker, rerank_text
+from metamorph_retrieval_gateway.application.reranking import TIMEOUT as RERANK_TIMEOUT
 
 T = TypeVar("T")
 
@@ -45,13 +51,16 @@ WORKERS = 16
 
 
 class Gateway:
-    def __init__(self, providers: Sequence[RetrievalProvider], *, timeout: float = TIMEOUT) -> None:
+    def __init__(self, providers: Sequence[RetrievalProvider], *, timeout: float = TIMEOUT,
+                 reranker: Reranker | None = None, candidates: int = CANDIDATES,
+                 rerank_timeout: float = RERANK_TIMEOUT) -> None:
         self.providers = {provider.manifest().name: provider for provider in providers}
         self.joined = {name: provider.manifest() for name, provider in self.providers.items()}  # what each offers
         self.owners = _one_each("owned", {name: manifest.namespaces for name, manifest in self.joined.items()})
         self.tools = _one_each("offered", {name: {tool.name for tool in manifest.tools}
                                            for name, manifest in self.joined.items()})
         self.timeout = timeout
+        self.reranker, self.candidates, self.rerank_timeout = reranker, candidates, rerank_timeout
         self.workers = ThreadPoolExecutor(max_workers=WORKERS, thread_name_prefix="provider")
 
     def manifest(self) -> Manifest:
@@ -80,6 +89,8 @@ class Gateway:
             raise CapabilityMissing(f"no provider searches {', '.join(unheld)}; the kinds searched are "
                                     f"{', '.join(searchable)}")
         asked_of = {name: kinds & asked for name, kinds in holders.items() if kinds & asked}
+        if self.reranker is not None:
+            return self._reranked(request, asked_of)
         if len(asked_of) == 1:
             ((name, kinds),) = asked_of.items()
             return self._ask(name, lambda: self.providers[name].search(replace(request, kinds=kinds)))
@@ -89,8 +100,44 @@ class Gateway:
         """Each provider's first pages, fused, and the slice the cursor asks for."""
         start = offset_of(request.cursor)
         enough = min(start + request.limit, MAX_LIMIT)
-        answers = self._ask_each({name: (lambda name=name, kinds=kinds: self.providers[name].search(
+        pages, warnings, why_empty = self._gathered({name: (lambda name=name, kinds=kinds: self.providers[name].search(
             replace(request, kinds=kinds, limit=enough, cursor=None))) for name, kinds in asked_of.items()})
+        return fused_page([pages[name] for name in sorted(pages)], start=start, limit=request.limit,
+                          warnings=warnings, why_empty=why_empty)
+
+    def _reranked(self, request: SearchRequest, asked_of: Mapping[str, frozenset[str]]) -> Page[Hit]:
+        """Each provider's first candidates, fused, then in the reranker's order; the slice the cursor asks for."""
+        start = offset_of(request.cursor)
+        pages, warnings, why_empty = self._gathered({name: (lambda name=name, kinds=kinds: self._candidates(
+            name, replace(request, kinds=kinds, cursor=None))) for name, kinds in asked_of.items()})
+        fused = fuse([pages[name] for name in sorted(pages)])[: self.candidates]
+        hits = [hit for hit, _ in fused]
+        try:
+            scores = self.workers.submit(self.reranker.scores, request.query,  # type: ignore[union-attr]
+                                         [rerank_text(hit.evidence) for hit in hits])
+            ranked = sorted(zip(hits, (float(score) for score in scores.result(timeout=self.rerank_timeout)),
+                                strict=True), key=lambda pair: -pair[1])
+        except Exception:  # noqa: BLE001 - late or failed, the fused order stands
+            ranked, warnings = fused, (*warnings, NOT_RERANKED)
+        return ranked_page(ranked, start=start, limit=request.limit, warnings=warnings, why_empty=why_empty)
+
+    def _candidates(self, name: str, request: SearchRequest) -> Page[Hit]:
+        """A provider's first `candidates` hits, over as many pages as that takes."""
+        page = self.providers[name].search(replace(request, limit=MAX_LIMIT))
+        hits, warnings = list(page.items), list(page.warnings)
+        while page.cursor is not None and len(hits) < self.candidates:
+            page = self.providers[name].search(replace(request, limit=MAX_LIMIT, cursor=page.cursor))
+            hits += page.items
+            warnings += [warning for warning in page.warnings if warning not in warnings]
+        if not hits:
+            return Page.empty(page.empty_reason or EmptyReason.NO_MATCH, tuple(warnings))
+        return Page(tuple(hits[: self.candidates]), warnings=tuple(warnings))
+
+    def _gathered(self, questions: Mapping[str, Callable[[], Page[Hit]]]) -> tuple[dict[str, Page[Hit]],
+                                                                                   tuple[str, ...], EmptyReason]:
+        """Each provider's page, asked at once; their warnings, each named; and why they'd be empty together. A
+        provider that fails is a warning while another answered with hits."""
+        answers = self._ask_each(questions)
         pages = {name: answer for name, answer in answers.items() if isinstance(answer, Page)}
         failed = {name: answer for name, answer in answers.items() if not isinstance(answer, Page)}
         if not pages:
@@ -102,8 +149,7 @@ class Gateway:
         reasons = {page.empty_reason for page in pages.values() if not page.items}
         why_empty = EmptyReason.FILTERS_EXCLUDE_ALL if reasons == {EmptyReason.FILTERS_EXCLUDE_ALL} \
             else EmptyReason.NO_MATCH
-        return fused_page([pages[name] for name in sorted(pages)], start=start, limit=request.limit,
-                          warnings=tuple(warnings), why_empty=why_empty)
+        return pages, tuple(warnings), why_empty
 
     def read(self, ref: Ref, *, window: int = 0) -> Evidence:
         name = self._owner(ref)

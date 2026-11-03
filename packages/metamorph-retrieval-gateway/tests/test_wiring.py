@@ -54,3 +54,30 @@ def test_every_call_log_gets_each_call_even_when_one_fails() -> None:
     AllCallLogs([Failing(), kept]).record(call)
 
     assert kept.calls == [call]
+
+
+def test_without_a_reranker_named_none_is_built() -> None:
+    from metamorph_retrieval_gateway.wiring import reranker_from
+
+    assert reranker_from("") is None and reranker_from("  ") is None
+
+
+def test_the_cross_encoder_scores_each_text_for_the_question() -> None:
+    from metamorph_retrieval_gateway.adapters.reranker import CrossEncoderReranker
+
+    class Encoder:
+        def predict(self, pairs, batch_size, show_progress_bar):  # noqa: ANN001, ANN202
+            return [len(text) for _, text in pairs]
+
+    reranker = CrossEncoderReranker("any", encoder=Encoder())
+    assert reranker.scores("q", ["ab", "abcd"]) == [2.0, 4.0] and reranker.scores("q", []) == []
+
+
+def test_the_gateway_as_serve_builds_it_can_be_evaluated_in_process(monkeypatch) -> None:  # noqa: ANN001
+    from metamorph_retrieval_gateway.wiring import gateway_from_environment
+
+    monkeypatch.setenv("METAMORPH_RETRIEVAL_PROVIDERS", "fakes:regulations,fakes:industries")
+    monkeypatch.delenv("METAMORPH_RETRIEVAL_RERANKER", raising=False)
+    gateway = gateway_from_environment()
+
+    assert sorted(gateway.providers) == ["industries", "regulation"] and gateway.reranker is None

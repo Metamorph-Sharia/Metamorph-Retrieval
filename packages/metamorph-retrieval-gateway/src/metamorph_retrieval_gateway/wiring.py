@@ -5,6 +5,8 @@
                                     METAMORPH_REGULATION_INDEX_URL or the same database)
     METAMORPH_RETRIEVAL_TIMEOUT     seconds a provider has to answer one call (default 10)
     METAMORPH_RETRIEVAL_CALL_LOG    the call log's directory (default var/call-log)
+    METAMORPH_RETRIEVAL_RERANKER    a cross-encoder model reranking every search's candidates (Hugging Face name, e.g.
+                                    cross-encoder/mmarco-mMiniLMv2-L12-H384-v1); unset: no reranking
 
 Providers are named, not imported, so the gateway depends on no provider: a new one joins by adding its factory.
 """
@@ -12,11 +14,13 @@ Providers are named, not imported, so the gateway depends on no provider: a new 
 from __future__ import annotations
 
 import importlib
+import os
 from collections.abc import Mapping
 from pathlib import Path
 
 from metamorph_retrieval_contract.provider import RetrievalProvider
 from metamorph_retrieval_gateway.adapters.call_log import JsonLinesCallLog
+from metamorph_retrieval_gateway.adapters.reranker import CrossEncoderReranker
 from metamorph_retrieval_gateway.adapters.tracing import SpanCallLog
 from metamorph_retrieval_gateway.application.calls import AllCallLogs
 from metamorph_retrieval_gateway.application.catalog import Catalog
@@ -25,6 +29,7 @@ from metamorph_retrieval_gateway.application.gateway import TIMEOUT, Gateway
 PROVIDERS = "METAMORPH_RETRIEVAL_PROVIDERS"
 TIMEOUT_SECONDS = "METAMORPH_RETRIEVAL_TIMEOUT"
 CALL_LOG = "METAMORPH_RETRIEVAL_CALL_LOG"
+RERANKER = "METAMORPH_RETRIEVAL_RERANKER"
 DEFAULT_PROVIDERS = ("metamorph_market_retrieval.wiring:market_provider,"
                      "metamorph_regulation_retrieval.wiring:regulation_provider")
 DEFAULT_CALL_LOG = "var/call-log"
@@ -32,10 +37,25 @@ EXAMPLE = "metamorph_market_retrieval.wiring:market_provider"
 
 
 def catalog_from(environment: Mapping[str, str]) -> Catalog:
-    gateway = Gateway(providers_from(environment.get(PROVIDERS, DEFAULT_PROVIDERS)),
-                      timeout=float(environment.get(TIMEOUT_SECONDS, TIMEOUT)))
+    gateway = gateway_from(environment)
     calls = AllCallLogs([JsonLinesCallLog(Path(environment.get(CALL_LOG, DEFAULT_CALL_LOG))), SpanCallLog()])
     return Catalog(gateway, calls=calls)
+
+
+def gateway_from(environment: Mapping[str, str]) -> Gateway:
+    return Gateway(providers_from(environment.get(PROVIDERS, DEFAULT_PROVIDERS)),
+                   timeout=float(environment.get(TIMEOUT_SECONDS, TIMEOUT)),
+                   reranker=reranker_from(environment.get(RERANKER, "")))
+
+
+def gateway_from_environment() -> Gateway:
+    """The gateway as `serve` builds it, in this process: for `metamorph-eval run --provider` where no HTTP path
+    reaches a running one (a task in the VPC)."""
+    return gateway_from(os.environ)
+
+
+def reranker_from(model: str) -> CrossEncoderReranker | None:
+    return CrossEncoderReranker(model.strip()) if model.strip() else None
 
 
 def providers_from(named: str) -> list[RetrievalProvider]:

@@ -12,6 +12,10 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.optional-dependencies]
+# The reranker's model (adapters/reranker.py), only when METAMORPH_RETRIEVAL_RERANKER names one.
+rerank = ["sentence-transformers>=3.0", "torch>=2.4"]
+
 [project.scripts]
 metamorph-gateway = "metamorph_retrieval_gateway.cli:main"
 

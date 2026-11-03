@@ -85,11 +85,15 @@ class SearchingRegulations(Regulations):
         self.asked.append(request)
         if self.fails:
             raise self.fails
-        found = [item for item in self.evidence.values() if item.kind in request.kinds][: request.limit]
+        start = int(request.cursor or 0)
+        held = [item for item in self.evidence.values() if item.kind in request.kinds]
+        found = held[start: start + request.limit]
         if not found:
             return Page.empty(EmptyReason.NO_MATCH, self.warnings)
-        return Page(tuple(Hit(item, rank=rank, score=0.9 - rank / 10, matched_by=frozenset({MatchedBy.SEMANTIC}))
-                          for rank, item in enumerate(found, start=1)), warnings=self.warnings)
+        following = start + request.limit
+        return Page(tuple(Hit(item, rank=rank, score=1 / rank, matched_by=frozenset({MatchedBy.SEMANTIC}))
+                          for rank, item in enumerate(found, start=start + 1)),
+                    cursor=str(following) if following < len(held) else None, warnings=self.warnings)
 
 
 def industry(named: Sequence[Ref] = (POJK_40, UNPUBLISHED)) -> Evidence:
