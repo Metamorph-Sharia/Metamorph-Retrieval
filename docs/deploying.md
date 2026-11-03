@@ -9,7 +9,7 @@ The gateway, its reranker and the regulation index, on the existing ECS services
 | Piece | Runs as | Reads | Writes |
 |---|---|---|---|
 | Gateway (`metamorph-gateway serve`) | `retrieval-gateway` and `retrieval-gateway-dev`, task family `metamorph-retrieval-gateway`, 2 vCPU / 8 GB | `published_market`, `retrieval_market`, `retrieval_regulation`, as `retrieval_reader` | Nothing |
-| Reranker | Inside the gateway task: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, on its CPU, over the first `METAMORPH_RETRIEVAL_RERANK_CANDIDATES` fused candidates (default 50) | | |
+| Reranker | Inside the gateway task: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, on its CPU, over the first `METAMORPH_RETRIEVAL_RERANK_CANDIDATES` fused candidates (25 on AWS; the code's default is 50) | | |
 | Regulation index build | Task `metamorph-retrieval`, with a command override | `published`, as `metamorph` | Schema `retrieval_regulation` |
 | Market index refresh | Task `metamorph-retrieval`, as it is (`scripts/refresh-market-index.sh`) | `published_market`, as `metamorph` | Schema `retrieval_market` |
 
@@ -18,6 +18,17 @@ The gateway, its reranker and the regulation index, on the existing ECS services
 - The database URLs are the existing parameters, `/metamorph/retrieval/reader-database-url` and `/metamorph/retrieval/indexer-database-url`. The second signs in as `metamorph`, the master user; there is no `retrieval_indexer` role.
 
 **The models** are baked into the image at pinned revisions (`Dockerfile`), and tasks read only them (`HF_HUB_OFFLINE=1`).
+
+**`DNNL_DEFAULT_FPMATH_MODE=BF16`** has torch's oneDNN do matrix maths in bf16 on Graviton3, which Fargate's arm64 tasks run on: the CPU has `bf16` and `i8mm`. Measured in a task on 2026-11-03, 50 rerank pairs:
+
+| Runtime | Time |
+|---|---|
+| torch, fp32 | 5.3 s |
+| torch, bf16 maths | 2.3 s |
+| ONNX fp32 | 6.3 s |
+| ONNX int8 | 1.9 s |
+
+int8 changed the ranking (rank correlation 0.80 with fp32); bf16 left the question sets' results as good or better (below).
 
 ## Why this hardware
 
@@ -119,6 +130,26 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
    deploy dev/retrieval --parameter-overrides GatewayTask=metamorph-retrieval-gateway:$REVISION
    ```
    Then run the question sets through `https://d2ae8k1h45zs74.cloudfront.net` with the dev token, as `docs/connecting-an-agent.md` shows.
+
+## Deployed on 2026-11-03
+
+| Gate, inside the VPC (bf16 maths) | Regulation set | Market set | A search's latency |
+|---|---|---|---|
+| Regulation provider alone, no reranking | 13 of 42, recall 0.33 | | |
+| Gateway, rerank 25 candidates (**what runs**) | 14 of 42, recall 0.36, MRR 0.31 | 52 of 54; search recall 0.71, MRR 0.75 | p50 2.9 s, p95 3.6 s |
+| Gateway, rerank 50 candidates | 16 of 42, recall 0.43, MRR 0.38 | 52 of 54; search recall 0.70, MRR 0.75 | p50 5.6 s, p95 6.9 s |
+| Gateway, rerank 50, fp32 maths | 7 of 42 | 49 of 54 | p50 10.3 s: the reranker misses its 5 s budget, and the fused order stands |
+
+**Through the public development address** (CloudFront, with the token): regulation 14 of 42 and market 52 of 54, the same. Without the token: 401.
+
+**What runs:**
+- **Image:** `metamorph/retrieval:abacb24`.
+- **Task definitions:** `metamorph-retrieval-gateway:4`, for both `retrieval-gateway` (1 task) and `retrieval-gateway-dev`; and `metamorph-retrieval:4`.
+- **Index:** `2026-11-03`, live in `retrieval_regulation`: 577,539 chunks, 179,523 vectors, 2,561 documents, about 2.6 GB.
+  - 179,228 of its vectors came from the Mac's build (`s3://metamorph-ops-<account>/transfer/retrieval/regulation-vectors-2026-11-03.copy.gz`, kept to seed later builds).
+  - 295 were embedded in the task, mostly UU 27/2022.
+
+**Latency:** a search was 0.7 s at p95 before the regulation provider and the reranker. Fewer candidates trade quality for speed. So does more hardware, which the role doesn't allow (the table above).
 
 ## Rolling back
 

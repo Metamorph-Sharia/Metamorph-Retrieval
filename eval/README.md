@@ -69,6 +69,7 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 | [Retrieval units only, by words and meaning fused](regulation/runs/2026-11-03-units-words.md) | 12 of 42 | 0.31 | 0.12 | What the index builds now |
 | [Through the gateway, market and regulation fused](regulation/runs/2026-11-03-gateway.md) | 9 of 42 | 0.21 | 0.05 | A search of every kind: market passages take some of the 8 places |
 | [Through the gateway, fused and reranked](regulation/runs/2026-11-03-gateway-reranked.md) | 15 of 42 | 0.38 | 0.34 | The gateway's reranker (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, 50 candidates, 256 tokens) reads each candidate against the question, on one scale across providers. What runs on AWS |
+| On AWS, inside the VPC (index `2026-11-03`, UU 27/2022 included; bf16 maths) | provider alone 13 of 42; gateway reranking 25 candidates 14 of 42 (what runs); 50 candidates 16 of 42 | | | Market set 52 of 54 either way. [docs/deploying.md](../docs/deploying.md) has the latency |
 
 **How each change counted,** on the same vectors (2026-11-03):
 
