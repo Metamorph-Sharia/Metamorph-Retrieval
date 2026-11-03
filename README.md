@@ -12,6 +12,8 @@ The retrieval layer of the market entry platform. It gives an answering agent ev
 | `metamorph-market-retrieval` | The market provider over `published_market`: search over report and release passages (full text + embeddings, fused), companies (today or on a past date), industry context, series and their figures, links, reading any market ref; its index in `retrieval_market` (`metamorph-market-index`) | 0.1 (M2, search M4) |
 | [`metamorph-retrieval-gateway`](docs/connecting-an-agent.md) | The providers as one: routing, time budgets, citations for what records name, MCP and HTTP, the call log and traces (`metamorph-gateway`) | 0.1 (M3); merging several providers' searches and links in M5 |
 | `metamorph-regulation-standin` | Reads and describes regulations (`doc:` refs) from `published` until Friend 2's provider arrives; never searches | 0.1 (M3) |
+| `metamorph-regulation-index` | Builds the regulation index: chunks, document metadata, bge-m3 vectors, and the judge that guards a swap (`scripts/refresh-regulation-index.sh`, the `regulation_index` DAG) | 0.1 |
+| `metamorph-regulation-retrieval` | The regulatory provider: `doc:` search, read and `find_provision`, over the regulation retrieval service (standalone MCP today; joins the gateway at M5) | 0.1 |
 
 ## Develop
 

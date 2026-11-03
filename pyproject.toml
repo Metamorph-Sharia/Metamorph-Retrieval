@@ -9,6 +9,8 @@ metamorph-retrieval-eval = { workspace = true }
 metamorph-market-retrieval = { workspace = true }
 metamorph-retrieval-gateway = { workspace = true }
 metamorph-regulation-standin = { workspace = true }
+metamorph-regulation-retrieval = { workspace = true }
+metamorph-regulation-index = { workspace = true }
 # On Linux (the retrieval image), torch's CPU wheels: PyPI's carry CUDA libraries the index never uses (19 GB image).
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
@@ -24,6 +26,8 @@ dev = [
     "metamorph-market-retrieval[embeddings]",
     "metamorph-retrieval-gateway",
     "metamorph-regulation-standin",
+    "metamorph-regulation-retrieval",
+    "metamorph-regulation-index",
     "opentelemetry-sdk>=1.25",
     "pytest>=8",
     "ruff>=0.6",
@@ -33,7 +37,7 @@ dev = [
 testpaths = ["packages"]
 addopts = "--import-mode=importlib"
 markers = ["database: needs PostgreSQL (METAMORPH_RETRIEVAL_TEST_DATABASE_URL); skipped otherwise"]
-pythonpath = ["packages/metamorph-retrieval-contract/tests", "packages/metamorph-retrieval-eval/tests", "packages/metamorph-market-retrieval/tests", "packages/metamorph-retrieval-gateway/tests", "packages/metamorph-regulation-standin/tests"]
+pythonpath = ["packages/metamorph-retrieval-contract/tests", "packages/metamorph-retrieval-eval/tests", "packages/metamorph-market-retrieval/tests", "packages/metamorph-retrieval-gateway/tests", "packages/metamorph-regulation-standin/tests", "packages/metamorph-regulation-retrieval/tests", "packages/metamorph-regulation-index/tests"]
 
 [tool.ruff]
 line-length = 120
@@ -43,4 +47,4 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "SIM", "PLE"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["metamorph_retrieval_contract", "metamorph_retrieval_eval", "metamorph_market_retrieval", "metamorph_retrieval_gateway", "metamorph_regulation_standin"]
+known-first-party = ["metamorph_retrieval_contract", "metamorph_retrieval_eval", "metamorph_market_retrieval", "metamorph_retrieval_gateway", "metamorph_regulation_standin", "metamorph_regulation_retrieval", "metamorph_regulation_index"]
