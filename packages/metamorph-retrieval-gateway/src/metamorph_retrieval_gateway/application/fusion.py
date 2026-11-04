@@ -1,16 +1,22 @@
-"""Several providers' rankings as one: reciprocal rank fusion, and the gateway's cursor over a ranking it made.
+"""Several providers' answers as one: reciprocal rank fusion of rankings, links merged in turn, and the gateway's cursor
+over what it made.
 
 A provider's score is comparable only within its own call (the contract), so fusion uses ranks alone: each hit scores
 1 / (k + rank) in each ranking it appears in. Equal scores keep the providers' order, then their ranks.
+
+Links aren't ranked, but each provider's come in its own order, the links that matter most first. They are merged in
+turn, so a page always holds some of each.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from itertools import zip_longest
 
 from metamorph_retrieval_contract.errors import InvalidArgument
 from metamorph_retrieval_contract.evidence import EmptyReason, Hit, Page
+from metamorph_retrieval_contract.links import Link
 
 RRF_K = 60  # the usual constant: a hit's rank matters, a few places more or less matter little
 CURSOR = "fused:"
@@ -46,10 +52,22 @@ def fuse(pages: Sequence[Page[Hit]], k: int = RRF_K) -> list[tuple[Hit, float]]:
     return [(first[key][0], scores[key]) for key in best]
 
 
+def merged_page(pages: Sequence[Page[Link]], *, start: int, limit: int, warnings: tuple[str, ...],
+                why_empty: EmptyReason) -> Page[Link]:
+    """The links in turn, each provider's first, then each one's second, from `start`, `limit` links long."""
+    turns = zip_longest(*(page.items for page in pages))
+    links = list(dict.fromkeys(link for turn in turns for link in turn if link is not None))
+    chosen = links[start:start + limit]
+    if not chosen:
+        return Page.empty(why_empty if not links else EmptyReason.NO_MATCH, warnings)
+    following = start + limit
+    return Page(tuple(chosen), cursor=f"{CURSOR}{following}" if following < len(links) else None, warnings=warnings)
+
+
 def offset_of(cursor: str | None) -> int:
     if cursor is None:
         return 0
     offset = cursor.removeprefix(CURSOR)
     if not cursor.startswith(CURSOR) or not offset.isdigit():
-        raise InvalidArgument(f"cursor {cursor!r} is not one this search gave; leave it out for the first page")
+        raise InvalidArgument(f"cursor {cursor!r} is not one this call gave; leave it out for the first page")
     return int(offset)

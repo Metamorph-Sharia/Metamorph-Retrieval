@@ -146,12 +146,15 @@ FOLLOW_LINKS_TOOL = ToolSpec(
     name=FOLLOW_LINKS,
     version=VERSION,
     description=(
-        "What a ref is linked to, and by what. For a regulation (doc:…), the report and release passages that name "
-        "it; for a passage, the regulations and companies it names (type names). Use it to go from a regulation to "
-        "what OJK or BI said about it, or from an announcement to the rules and companies it concerns. direction: "
-        "incoming (what links to the ref), outgoing (what the ref links to), or both. Returns links: type, source and "
-        "target refs, to read. Links between regulations (amends, revokes, implements) arrive with the regulation "
-        "layer's provider."
+        "What a ref is linked to, and by what. For a regulation or fatwa (doc:…): what revokes, supersedes, amends or "
+        "implements it, what it rests on (legal_basis, adopts_fatwa), what cites it (refers_to), and the report and "
+        "release passages that name it (names), what changes it first. For a provision (doc:…#pasal-5), also what "
+        "changes the article or document holding it, and the references inside its document. For a passage, the "
+        "regulations and companies it names. Use it to check a text is still the rule, and to go from a regulation "
+        "to what OJK or BI said about it, or from an announcement to the rules and companies it concerns. direction: "
+        "incoming (what links to the ref), outgoing (what the ref links to), or both. types narrows them. Returns "
+        "links: type, source and target refs, to read, effective_on and confidence. A link may name a regulation "
+        "that isn't published. Reading a regulation gives its status history."
     ),
     input_schema=_schema({"ref": REF, **load_schema()["$defs"]["links_request"]["properties"]}, ["ref"]),
     output_schema=shape_schema("link_page"),

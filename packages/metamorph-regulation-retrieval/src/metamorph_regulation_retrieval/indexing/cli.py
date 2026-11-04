@@ -94,6 +94,7 @@ def _build(args: argparse.Namespace) -> int:
     tables = Tables.for_snapshot(args.snapshot)
     count = builder.build(args.snapshot, tables, limit=args.limit or None)
     builder.build_metadata(tables)
+    builder.build_links(tables)
     if not args.skip_embed:
         model = load_model(args.model)
         with psycopg.connect(index_url()) as conn:

@@ -6,6 +6,7 @@ Retrieval is judged on its own, apart from the agent's answers, so that "retriev
 |---|---|---|
 | [`market/cases.jsonl`](market/cases.jsonl) | 54 | The market provider: companies, industry context, figures, series, report and release passages, links, reading, errors |
 | [`regulation/cases.jsonl`](regulation/cases.jsonl) | 42 | Regulation search: mira-ai-chatbot's golden questions, asked as they are, for the retrieval units each answer needs (54 refs) |
+| [`federated/cases.jsonl`](federated/cases.jsonl) | 27 | Both layers together: links between regulations and to what OJK said of them, a rule and what the regulator said of it, and the hops from an industry to its rules |
 
 ## A case
 
@@ -52,6 +53,13 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 - **Every expected clause was in force on its question's date,** so `in_force_on` excludes none.
 - **Five refs are in UU 27/2022 (personal data protection),** which the index left out until 2026-11-03. The runs before that date can't find them.
 
+**How the federated set was built** (2026-11-04):
+- **Link cases come from the regulations' own wording,** not the link table: each expected link was read in the provision stating it, such as POJK 40/2024 Pasal 236 revoking POJK 10/2022. Four kinds were left out because the wording couldn't confirm them: `implements`, `adopts_fatwa`, a link to an unpublished document, and `changes_fatwa`, which has no links yet.
+- **Search cases pair a rule with what a regulator said of it.** Each passage was read before it was accepted.
+- **A question of two parts is two calls.** Each of the first six search cases asked for a rule and what OJK said of it in one search: 1 of 6 passed, the two halves' words competing for the same places. Asked as two searches, as a case's call is meant to be the one a good agent makes, those topics give the 11 search cases below. Splitting a question is the agent's (`docs/retrieval-architecture.md` §2), so a two-part search is no gate here.
+- **Rule cases set `in_force_on`,** as a good agent would. Without it, POJK 5/2015 outranked POJK 7/2026, which replaced it.
+- **The cases were written after a first look at results,** so the search cases' pass rate is not a blind measure. The two that fail were kept as they fail.
+
 ## Runs
 
 | Run | Passed | Recall@k | MRR | Notes |
@@ -89,6 +97,14 @@ Through the fused gateway the market set still passes 52 of 54, the same cases a
 **Activating an index version** (§8): run the set on the active version and on the candidate (`METAMORPH_MARKET_INDEX_VERSION`), then `metamorph-eval compare active.json candidate.json`. It exits 0 only if the candidate passes at least as many cases and recalls at least as much, and lists the cases gained and lost. `scripts/refresh-market-index.sh` does all of it after each publish, through the `market_index` DAG.
 
 **One case to review:** `series-sharia-third-party-funds` asks for sharia banks' third-party funds, and expects sharia commercial banks only. Rural sharia banks (BPRS) are sharia banks too, and their third-party funds rank first. The question, or its expected refs, should say which it means.
+
+Federated set:
+
+| Run | Passed | Recall@k | MRR | Notes |
+|---|---|---|---|---|
+| [2026-11-04, through the gateway, 25 rerank candidates](federated/runs/2026-11-04-gateway.md) | 25 of 27 | 0.93 | 0.81 | Every link case passes, 13 of 13. Two searches miss, both real: the rule on minimum equity is asked as "pindar", a word only OJK's releases use; and "persyaratan perizinan penyelenggara" within POJK 40/2024 misses Pasal 10. Local index, without UU 27/2022 |
+
+With links and merging in, the regulation set stays at 15 of 42 (50 candidates) and the market set at 52 of 54.
 
 ## Measures
 

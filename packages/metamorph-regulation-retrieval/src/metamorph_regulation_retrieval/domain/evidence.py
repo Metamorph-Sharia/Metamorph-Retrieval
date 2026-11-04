@@ -95,6 +95,7 @@ def document_evidence(document: dict[str, Any], *, provider: str, index_version:
                 "year": document.get("year"),
                 "effective_on": _date(document.get("effective_on")),
                 "aliases": list(document.get("aliases") or ()),
+                "status_history": list(document.get("status_history") or ()),
             },
         },
         "provenance": {

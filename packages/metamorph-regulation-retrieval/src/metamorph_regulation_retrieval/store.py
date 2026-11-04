@@ -17,8 +17,9 @@ import psycopg
 from pgvector.psycopg import register_vector
 
 from metamorph_regulation_retrieval.domain.filters import NO_FILTERS, Filters
+from metamorph_regulation_retrieval.domain.links import CHANGING, ORDER, LinkRow
 from metamorph_regulation_retrieval.domain.passage import Passage
-from metamorph_regulation_retrieval.indexing.build import stems_table
+from metamorph_regulation_retrieval.indexing.build import links_table, stems_table
 from metamorph_regulation_retrieval.indexing.chunks import LANGUAGE
 
 CHUNK_TABLE = "METAMORPH_REGULATION_CHUNK_TABLE"
@@ -103,17 +104,34 @@ where c.document_id = %s and c.address = %s
 limit 1
 """
 
+# to_jsonb, since an index built before status histories has no such column
 DOCUMENT = """
 select document_id, kind, citation, title, issuer, status, family, number, year,
-       promulgated_on, effective_on, published_at, aliases
-from {meta}
+       promulgated_on, effective_on, published_at, aliases, to_jsonb(m) -> 'status_history'
+from {meta} m
 where document_id = %s
 """
 
 DOCUMENT_COLUMNS = (
     "document_id", "kind", "citation", "title", "issuer", "status", "family", "number",
-    "year", "promulgated_on", "effective_on", "published_at", "aliases",
+    "year", "promulgated_on", "effective_on", "published_at", "aliases", "status_history",
 )
+
+# A document's links cross to other documents: those inside it are its provisions'. A provision's are those on it or on
+# a part of it, and what changes what holds it.
+LINKS = """
+select type, from_document, from_address, to_document, to_address, effective_on, confidence
+from {links}
+where ({where}){types}
+order by type = any(%(changing)s) and to_document = %(document)s desc, array_position(%(order)s::text[], type),
+         effective_on desc nulls last, from_document, from_address nulls first, to_document, to_address nulls first
+limit %(limit)s offset %(offset)s
+"""
+
+OTHER_DOCUMENTS = "from_document <> to_document"
+WITHIN = "({end} = %(address)s or left({end}, length(%(address)s) + 1) = %(address)s || '/')"
+HOLDING = ("(type = any(%(changing)s) and (to_address is null or left(%(address)s, length(to_address) + 1) "
+           "= to_address || '/'))")
 
 
 class PostgresStore:
@@ -176,6 +194,22 @@ class PostgresStore:
     def matches_words(self) -> bool:
         """Whether the index holds the units' words and their stems (indexes built since 2026-11-03)."""
         return self._has_column(self.chunk_table, "words") and self._has_column(stems_table(self.chunk_table), "common")
+
+    def holds_links(self) -> bool:
+        """Whether the index holds the links (indexes built since 2026-11-04)."""
+        return self._has_column(links_table(self.chunk_table), "type")
+
+    def links(self, document_id: str, address: str | None, *, incoming: bool, outgoing: bool, types: Sequence[str],
+              limit: int, offset: int) -> list[LinkRow]:
+        """The links asked for: what changes the text, then the rest (domain.links), the newest of each type first."""
+        sides = [*([_incoming(address)] if incoming else []), *([_outgoing(address)] if outgoing else [])]
+        query = LINKS.format(links=links_table(self.chunk_table), where=" or ".join(sides),
+                             types=" and type = any(%(types)s)" if types else "")
+        with self._connect() as conn:
+            rows = conn.execute(query, {"document": document_id, "address": address, "changing": list(CHANGING),
+                                        "types": list(types), "order": list(ORDER), "limit": limit,
+                                        "offset": offset}).fetchall()
+        return [LinkRow(*row) for row in rows]
 
     def dates_revocations(self) -> bool:
         """Whether the index knows when each revoked document was revoked (indexes built since 2026-11-03)."""
@@ -280,3 +314,15 @@ def _table(name: str) -> str:
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
         raise ValueError(f"{name!r} is not a table name")
     return name
+
+
+def _incoming(address: str | None) -> str:
+    if address is None:
+        return f"to_document = %(document)s and {OTHER_DOCUMENTS}"
+    return f"to_document = %(document)s and ({WITHIN.format(end='to_address')} or {HOLDING})"
+
+
+def _outgoing(address: str | None) -> str:
+    if address is None:
+        return f"from_document = %(document)s and {OTHER_DOCUMENTS}"
+    return f"from_document = %(document)s and {WITHIN.format(end='from_address')}"

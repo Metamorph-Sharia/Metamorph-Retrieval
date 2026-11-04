@@ -97,6 +97,7 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
      --tags key=Owner,value=project3
    ```
    - **The log** says how many vectors were taken, then embeds the rest.
+   - **An index built before 2026-11-04 has no links.** `follow_links` then says so in a warning and answers with the market's links alone, until a build makes `regulation_chunk_live_links` and each document's status history. Nothing else changes, so the same vectors seed that build.
    - **The first build activates without a judgement:** there is no active index to compare with. Later builds run `scripts/refresh-regulation-index.sh`, which judges the new snapshot against the active one before activating it.
    - **Check:** `metamorph-regulation-index versions` lists the snapshot as `live`.
 

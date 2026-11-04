@@ -10,7 +10,8 @@ stopped, only no longer awaited: each provider bounds its own work too (the mark
 
 A search that several providers can answer goes to each of them at once, and their rankings are fused by reciprocal
 rank (fusion.py): a provider's scores mean nothing to another's, its ranks do. A provider that fails leaves the others'
-answer and a warning. Merging several providers' links waits for a second provider that links (M5).
+answer and a warning. Links go to every provider answering them, whoever owns the ref, and are merged in turn, the
+owner's first.
 
 With a reranker (reranking.py), every search's candidates, each provider's first ones fused, are put in the
 reranker's order, which holds across providers as ranks don't. A reranker that fails or is late leaves the fused
@@ -38,7 +39,7 @@ from metamorph_retrieval_contract.provider import JSON, Manifest, RetrievalProvi
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import MAX_LIMIT, LinksRequest, SearchRequest
 from metamorph_retrieval_gateway.application.enrichment import MAX_NAMED, card_fields, cited, named, past_budget
-from metamorph_retrieval_gateway.application.fusion import fuse, fused_page, offset_of, ranked_page
+from metamorph_retrieval_gateway.application.fusion import fuse, fused_page, merged_page, offset_of, ranked_page
 from metamorph_retrieval_gateway.application.reranking import CANDIDATES, NOT_RERANKED, Reranker, rerank_text
 from metamorph_retrieval_gateway.application.reranking import TIMEOUT as RERANK_TIMEOUT
 
@@ -122,18 +123,10 @@ class Gateway:
         return ranked_page(ranked, start=start, limit=request.limit, warnings=warnings, why_empty=why_empty)
 
     def _candidates(self, name: str, request: SearchRequest) -> Page[Hit]:
-        """A provider's first `candidates` hits, over as many pages as that takes."""
-        page = self.providers[name].search(replace(request, limit=MAX_LIMIT))
-        hits, warnings = list(page.items), list(page.warnings)
-        while page.cursor is not None and len(hits) < self.candidates:
-            page = self.providers[name].search(replace(request, limit=MAX_LIMIT, cursor=page.cursor))
-            hits += page.items
-            warnings += [warning for warning in page.warnings if warning not in warnings]
-        if not hits:
-            return Page.empty(page.empty_reason or EmptyReason.NO_MATCH, tuple(warnings))
-        return Page(tuple(hits[: self.candidates]), warnings=tuple(warnings))
+        return _first(self.candidates, lambda cursor: self.providers[name].search(
+            replace(request, limit=MAX_LIMIT, cursor=cursor)))
 
-    def _gathered(self, questions: Mapping[str, Callable[[], Page[Hit]]]) -> tuple[dict[str, Page[Hit]],
+    def _gathered(self, questions: Mapping[str, Callable[[], Page[Any]]]) -> tuple[dict[str, Page[Any]],
                                                                                    tuple[str, ...], EmptyReason]:
         """Each provider's page, asked at once; their warnings, each named; and why they'd be empty together. A
         provider that fails is a warning while another answered with hits."""
@@ -165,11 +158,23 @@ class Gateway:
         return [cards[ref] for ref in refs if ref in cards]
 
     def links(self, ref: Ref, request: LinksRequest) -> Page[Link]:
-        linking = [name for name, manifest in self.joined.items() if manifest.links]
+        owner = self.owners.get(ref.namespace)
+        linking = sorted((name for name, manifest in self.joined.items() if manifest.links),
+                         key=lambda name: (name != owner, name))
         if not linking:
             raise CapabilityMissing("no provider answers links yet")
-        (name,) = linking  # one until M5
-        return self._ask(name, lambda: self.providers[name].links(ref, request))
+        if len(linking) == 1:
+            return self._ask(linking[0], lambda: self.providers[linking[0]].links(ref, request))
+        start = offset_of(request.cursor)
+        enough = start + request.limit + 1  # one more, to know whether a next page exists
+        pages, warnings, why_empty = self._gathered(
+            {name: (lambda name=name: self._first_links(name, ref, request, enough)) for name in linking})
+        return merged_page([pages[name] for name in linking if name in pages], start=start, limit=request.limit,
+                           warnings=warnings, why_empty=why_empty)
+
+    def _first_links(self, name: str, ref: Ref, request: LinksRequest, count: int) -> Page[Link]:
+        return _first(count, lambda cursor: self.providers[name].links(
+            ref, replace(request, limit=MAX_LIMIT, cursor=cursor)))
 
     def call(self, tool: str, arguments: Mapping[str, Any]) -> JSON:
         if tool not in self.tools:
@@ -231,6 +236,19 @@ class Gateway:
             raise
         except Exception as exc:  # noqa: BLE001 - its internals (a connection string, a query) stay in the logs
             raise ProviderUnavailable(f"{name} failed ({type(exc).__name__}); try again later") from exc
+
+
+def _first(count: int, ask: Callable[[str | None], Page[T]]) -> Page[T]:
+    """A provider's first `count` items, over as many pages as that takes."""
+    page = ask(None)
+    items, warnings = list(page.items), list(page.warnings)
+    while page.cursor is not None and len(items) < count:
+        page = ask(page.cursor)
+        items += page.items
+        warnings += [warning for warning in page.warnings if warning not in warnings]
+    if not items:
+        return Page.empty(page.empty_reason or EmptyReason.NO_MATCH, tuple(warnings))
+    return Page(tuple(items[:count]), warnings=tuple(warnings))
 
 
 def _record_fields(item: JSON) -> JSON | None:

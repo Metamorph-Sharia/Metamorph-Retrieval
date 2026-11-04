@@ -64,10 +64,36 @@ DOCUMENTS = """
 select d.id, d.kind, d.citation, d.title, d.issuer, d.status, d.family, d.number,
        d.year, d.promulgated_on, d.effective_on, d.published_at, d.aliases,
        (select min(e.effective_from) from published.status_event e
-        where e.document_id = d.id and e.address is null and e.status = 'revoked') as revoked_on
+        where e.document_id = d.id and e.address is null and e.status = 'revoked') as revoked_on,
+       (select jsonb_agg(to_jsonb(e) order by e.effective_from nulls first, e.status)::text
+        from (select distinct status, effective_from, source from published.status_event
+              where document_id = d.id and address is null) e) as status_history
 from published.document d
 where d.id <> all(%s)
 order by d.id
+"""
+
+# The contract's links between documents and provisions: a document's own structure (contains, elucidates) isn't one.
+# A link takes effect when the document stating it does, which is how the platform dates what links change.
+LINKS = """
+select e.type, e.from_document, e.from_address, e.to_document, e.to_address,
+       coalesce(e.effective_on, d.effective_on, d.promulgated_on), e.confidence
+from published.edge e
+join published.document d on d.id = e.from_document
+where e.type = any(%s) and e.from_document <> all(%s)
+order by e.from_document, e.from_address, e.to_document, e.to_address, e.type
+"""
+
+LINK_DDL = """
+create table {table} (
+  type text not null,
+  from_document text not null,
+  from_address text,
+  to_document text not null,
+  to_address text,
+  effective_on date,
+  confidence text
+)
 """
 
 CHUNK_DDL = """
@@ -117,7 +143,8 @@ create table {table} (
   effective_on date,
   published_at timestamptz,
   aliases text[],
-  revoked_on date
+  revoked_on date,
+  status_history jsonb
 )
 """
 

@@ -186,7 +186,7 @@ def _check_links(found: _Problems, provider: RetrievalProvider, manifest: Manife
     if page is None:
         return
     for link in page.items:
-        if linked not in (link.source, link.target):
+        if not (linked.overlaps(link.source) or linked.overlaps(link.target)):
             found.add(f"links: a link of neither end {linked}: {link.source} {link.type} {link.target}")
     found.repeatable("links", lambda: provider.links(linked, LinksRequest()), page)
     found.wire("links", page, codec.links_from_dict)

@@ -77,6 +77,8 @@ class RetrievalProvider(Protocol):
   - the regulation layer knows what amends a regulation;
   - the market layer knows which passages name it (`names`).
   
+  One end of each link overlaps the ref: it is the ref, a part of it, or what holds it. What amends an article, or revokes its whole document, is a link about that article. A page lists the links that matter most first, since the gateway keeps each provider's order when it merges them.
+  
   Types: `legal_basis`, `implements`, `amends`, `supersedes`, `revokes`, `partly_revokes`, `adopts_fatwa`, `changes_fatwa`, `refers_to`, `names`.
 - **`call`** runs one of the provider's own tools, and its result meets the tool's output schema.
   - A ranked tool returns a page of hits (`hit_page`).

@@ -39,6 +39,28 @@ def test_text_that_is_not_a_ref_is_refused_with_what_a_ref_looks_like(text: str)
         Ref.parse(text)
 
 
+def test_a_ref_holds_itself_and_its_parts() -> None:
+    document = Ref.parse("doc:ojk:pojk:2024:40")
+    article = Ref.parse("doc:ojk:pojk:2024:40#pasal-5")
+    paragraph = Ref.parse("doc:ojk:pojk:2024:40#pasal-5/ayat-1")
+
+    assert document.holds(article) and document.holds(paragraph) and article.holds(paragraph)
+    assert article.holds(article)
+    assert not paragraph.holds(article)
+
+
+def test_a_neighbour_with_a_longer_name_is_not_a_part() -> None:
+    assert not Ref.parse("doc:ojk:pojk:2024:40#pasal-5").holds(Ref.parse("doc:ojk:pojk:2024:40#pasal-50"))
+
+
+def test_two_refs_overlap_when_either_holds_the_other() -> None:
+    article = Ref.parse("doc:ojk:pojk:2024:40#pasal-5")
+
+    assert article.overlaps(article.whole()) and article.whole().overlaps(article)
+    assert not article.overlaps(Ref.parse("doc:ojk:pojk:2024:40#pasal-6"))
+    assert not article.overlaps(Ref.parse("doc:ojk:pojk:2023:40#pasal-5"))
+
+
 def test_a_ref_built_in_code_is_checked_as_a_parsed_one_is() -> None:
     with pytest.raises(InvalidArgument):
         Ref("doc", "ojk pojk")

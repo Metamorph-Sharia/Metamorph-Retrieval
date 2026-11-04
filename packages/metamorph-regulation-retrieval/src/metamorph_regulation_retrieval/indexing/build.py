@@ -11,7 +11,20 @@ from dataclasses import dataclass
 
 import psycopg
 
-from .chunks import CHUNK_DDL, COMMON_SHARE, DOCUMENTS, META_DDL, PROVISIONS, STEMS_DDL, Chunk, Provision, chunk
+from ..domain.links import ORDER
+from .chunks import (
+    CHUNK_DDL,
+    COMMON_SHARE,
+    DOCUMENTS,
+    LINK_DDL,
+    LINKS,
+    META_DDL,
+    PROVISIONS,
+    STEMS_DDL,
+    Chunk,
+    Provision,
+    chunk,
+)
 from .config import excluded_documents, index_url, published_url, table_name, tag
 
 BUILD_DDL = """
@@ -53,6 +66,11 @@ class Tables:
     def stems(self) -> str:
         """The word search's stems, named after the chunks they were counted in (stems_table)."""
         return stems_table(self.chunks)
+
+    @property
+    def links(self) -> str:
+        """The links, named after the chunks they were built with (links_table)."""
+        return links_table(self.chunks)
 
     @classmethod
     def for_snapshot(cls, snapshot: str) -> Tables:
@@ -107,6 +125,23 @@ def build_metadata(tables: Tables) -> int:
                     copy.write_row(row)
         target.commit()
     print(f"documents: {len(rows):,}", flush=True)
+    return len(rows)
+
+
+def build_links(tables: Tables) -> int:
+    with psycopg.connect(published_url()) as source:
+        rows = source.execute(LINKS, (list(ORDER), excluded_documents())).fetchall()
+    with psycopg.connect(index_url()) as target:
+        with target.cursor() as cursor:
+            cursor.execute(f"drop table if exists {table_name(tables.links)}")
+            cursor.execute(LINK_DDL.format(table=table_name(tables.links)))
+            with cursor.copy(f"copy {tables.links} from stdin") as copy:
+                for row in rows:
+                    copy.write_row(row)
+            cursor.execute(f"create index {tables.links}_from on {tables.links} (from_document)")
+            cursor.execute(f"create index {tables.links}_to on {tables.links} (to_document)")
+        target.commit()
+    print(f"links: {len(rows):,}", flush=True)
     return len(rows)
 
 
@@ -181,8 +216,8 @@ def activate(tables: Tables, live: Tables, *, allow_shrink: bool = False) -> Non
     with psycopg.connect(index_url()) as conn:
         with conn.cursor() as cursor:
             for built, target in zip(
-                (tables.chunks, tables.embeddings, tables.meta, tables.stems),
-                (live.chunks, live.embeddings, live.meta, live.stems),
+                (tables.chunks, tables.embeddings, tables.meta, tables.stems, tables.links),
+                (live.chunks, live.embeddings, live.meta, live.stems, live.links),
                 strict=True,
             ):
                 cursor.execute(f"drop table if exists {target}__old")
@@ -193,6 +228,10 @@ def activate(tables: Tables, live: Tables, *, allow_shrink: bool = False) -> Non
 
 def stems_table(chunks: str) -> str:
     return f"{chunks}_stems"
+
+
+def links_table(chunks: str) -> str:
+    return f"{chunks}_links"
 
 
 def exists(conn: psycopg.Connection, table: str) -> bool:

@@ -67,7 +67,7 @@ curl -s -H "Authorization: Bearer $METAMORPH_RETRIEVAL_GATEWAY_TOKEN" "$METAMORP
 | `get_observations` | The figures of series between two periods (`2026-08`, `2026-Q2`, `2025`) | Evidence with figures, provisional marks kept |
 | `find_provision` | A citation the question names: `POJK 40/2024 Pasal 137 ayat (3)`, `Fatwa 117`, `UU 27/2022 Pasal 5` | The provision, or the regulation's card, as evidence |
 | `read` | Any ref in full: a passage (with `window`), a company, a dataset, a regulation or a provision (`doc:…#pasal-5/ayat-1`) | One piece of evidence |
-| `follow_links` | Which report and release passages name a regulation, or what a passage names | Links between refs |
+| `follow_links` | What revokes, amends or implements a regulation, what it rests on and cites, which report and release passages name it, or what a passage names | Links between refs |
 
 Each tool's description and schemas are in `tools/list`. Every result carries `citation` (quote it as is), `legal_force` (binding, sharia, explanatory, none), qualifiers, and `provenance.index_version`. Ranked results carry `rank`, `score` and `matched_by`, for a relevance grader. An empty page says why: `no_match` (rephrase) or `filters_exclude_all` (widen the filters).
 
@@ -102,4 +102,10 @@ Send W3C trace context and each call joins your trace: `_meta.traceparent` over 
 - **A hit is a retrieval unit:** the smallest provision with wording of its own, such as a paragraph with its lettered items (`doc:ojk:pojk:2024:40#pasal-137/ayat-3`), or an article without paragraphs. An article holding paragraphs, or one item, is never a hit, but `read` serves any published address, the same refs the stand-in served before.
 - **It matches words and meaning,** fused by rank, and `matched_by` says which found a hit. Words find what a question turns on (an amount, a term, a number); meaning finds the rest, across languages.
 - **The regulatory index is a snapshot,** rebuilt after a publish (`scripts/refresh-regulation-index.sh`). Reads of `doc:` refs come from it, so a regulation published since the last build isn't there yet.
-- **Links are `names` only** (which passages name what). Amends, revokes and implements arrive when the regulatory provider answers links.
+- **`follow_links` answers for both layers, merged.**
+  - **Order:** what changes the text comes first, so "is this still the rule?" is answered on the first page. The two layers then take turns, the owner of the ref first.
+  - **A document's links** are those with other documents.
+  - **A provision's links** also hold the references inside its document, and what changes the article or the document holding it. A paragraph of a revoked regulation shows what revoked the regulation.
+  - **`effective_on`** is the date the document stating the link took effect. **`confidence`** is 0.9 where a source states the link, 0.6 where it was found by pattern in the text.
+  - **A link may name a regulation that isn't published.** Reading that ref gives `unknown_ref`.
+- **Reading a regulation** (`read` on a `doc:` ref without an address) gives its `status_history`: each status a source gave the whole document, with its date when known. It covers a revocation no link explains.

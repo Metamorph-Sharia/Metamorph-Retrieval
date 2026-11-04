@@ -24,18 +24,18 @@ from metamorph_regulation_retrieval.domain.evidence import (
 from metamorph_regulation_retrieval.domain.filters import Filters
 from metamorph_regulation_retrieval.domain.fusion import reciprocal_rank_fusion
 from metamorph_regulation_retrieval.domain.legal import legal_force_of, provision_label
+from metamorph_regulation_retrieval.domain.links import CONFIDENCE, LinkRow
 from metamorph_regulation_retrieval.domain.passage import Passage
-from metamorph_regulation_retrieval.domain.refs import RefError
+from metamorph_regulation_retrieval.domain.refs import NAMESPACE, RefError
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import (
-    CapabilityMissing,
     InvalidArgument,
     ProviderUnavailable,
     UnknownRef,
     UnknownTool,
 )
-from metamorph_retrieval_contract.evidence import Evidence, Hit, Page
-from metamorph_retrieval_contract.links import Link
+from metamorph_retrieval_contract.evidence import EmptyReason, Evidence, Hit, Page
+from metamorph_retrieval_contract.links import Direction, Link, LinkType
 from metamorph_retrieval_contract.provider import JSON, Manifest, ToolSpec
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest, Sort
@@ -56,6 +56,8 @@ WORDS, SEMANTIC = "words", "semantic"
 NO_WORDS = "matched by meaning only: this index predates word search; rebuild it to match words too"
 NOT_DATED = ("in_force_on: revocations are not dated in this index, so documents revoked today were left out on "
              "every day; rebuild the index to date them")
+
+NO_LINKS = "links are not served: this index predates them; rebuild it to follow what amends or revokes a regulation"
 
 FIND_TOOL = ToolSpec(
     name=FIND,
@@ -92,7 +94,7 @@ class RegulationProvider:
             version=VERSION,
             namespaces=frozenset({"doc"}),
             kinds=frozenset(KINDS),
-            links=False,
+            links=True,
             tools=(FIND_TOOL,),
             index_version=self.index_version,
             data_as_of=self.store.published_at(),
@@ -165,10 +167,26 @@ class RegulationProvider:
         return [cards[ref] for ref in refs if ref in cards]
 
     def links(self, ref: Ref, request: LinksRequest) -> Page[Link]:
-        raise CapabilityMissing(
-            "links between regulations are not served yet; the platform publishes them and a later "
-            "version of this provider will answer them"
-        )
+        if ref.namespace != NAMESPACE:
+            return Page.empty(EmptyReason.NO_MATCH)
+        if not self.store.holds_links():
+            return Page.empty(EmptyReason.NO_MATCH, (NO_LINKS,))
+        offset = _offset(request.cursor)
+        try:
+            rows = self.store.links(
+                ref.id, ref.address,
+                incoming=request.direction is not Direction.OUTGOING,
+                outgoing=request.direction is not Direction.INCOMING,
+                types=sorted(request.types),
+                limit=request.limit + 1,
+                offset=offset,
+            )
+        except Exception as error:  # noqa: BLE001
+            raise ProviderUnavailable(f"{NAME} could not read links: {type(error).__name__}") from error
+        links = tuple(_link(row) for row in rows[: request.limit])
+        if not links:
+            return Page.empty(EmptyReason.NO_MATCH)
+        return Page(links, cursor=str(offset + request.limit) if len(rows) > request.limit else None)
 
     def call(self, tool: str, arguments: Mapping[str, Any]) -> JSON:
         if tool != FIND:
@@ -230,6 +248,12 @@ def _shortened(passage: Passage) -> Passage:
     if len(passage.text) <= HIT_CHARS:
         return passage
     return replace(passage, text=passage.text[:HIT_CHARS].rsplit(" ", 1)[0] + "…")
+
+
+def _link(row: LinkRow) -> Link:
+    return Link(LinkType(row.type), Ref(NAMESPACE, row.from_document, row.from_address),
+                Ref(NAMESPACE, row.to_document, row.to_address), effective_on=row.effective_on,
+                confidence=CONFIDENCE.get(row.confidence or ""))
 
 
 def _offset(cursor: str | None) -> int:

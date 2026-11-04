@@ -68,7 +68,7 @@ def _call(provider: RetrievalProvider, tool: str, arguments: Mapping[str, Any]) 
         asked = _ref(arguments)
         request = codec.links_request_from_dict({key: value for key, value in arguments.items() if key != "ref"})
         links = provider.links(asked, request).items
-        return Result(refs=tuple(link.source if _is(link.target, asked) else link.target for link in links))
+        return Result(refs=tuple(link.source if asked.overlaps(link.target) else link.target for link in links))
     return _result(_evidence_of(provider.call(tool, arguments)))
 
 
@@ -113,7 +113,3 @@ def _named(value: object) -> Iterator[Ref]:
     elif isinstance(value, list | tuple):
         for inner in value:
             yield from _named(inner)
-
-
-def _is(end: Ref, asked: Ref) -> bool:
-    return end == asked or (asked.address is None and end.whole() == asked)

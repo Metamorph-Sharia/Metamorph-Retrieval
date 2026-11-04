@@ -17,8 +17,8 @@ import pytest
 from psycopg import sql
 
 from metamorph_regulation_retrieval.domain.filters import NO_FILTERS, Filters
-from metamorph_regulation_retrieval.indexing.build import stems_table
-from metamorph_regulation_retrieval.indexing.chunks import CHUNK_DDL, META_DDL, STEMS_DDL
+from metamorph_regulation_retrieval.indexing.build import links_table, stems_table
+from metamorph_regulation_retrieval.indexing.chunks import CHUNK_DDL, LINK_DDL, META_DDL, STEMS_DDL
 from metamorph_regulation_retrieval.indexing.embed import EMBED_DDL, index_vectors
 from metamorph_regulation_retrieval.store import BARE, COLUMNS, SEARCH, PostgresStore
 
@@ -38,6 +38,7 @@ DOCUMENTS = {
     "ojk:pojk:2016:77": ("regulation", "ojk", "revoked", date(2016, 12, 29), None),  # revoked, nobody says when
     "dsnmui:fatwa:117": ("fatwa", "dsnmui", "unknown", None, None),
 }
+HISTORY = '[{"status": "revoked", "effective_from": "2025-01-01", "source": "links"}]'
 # chunk: document, address, valid_to, searchable, vector (the closer to QUESTION, the better), wording
 CHUNKS = [
     ("ojk:pojk:2016:77", "pasal-1", None, True, [1.0, 0.0, 0.0], "Penyelenggara wajib berbentuk badan hukum."),
@@ -48,6 +49,19 @@ CHUNKS = [
     ("ojk:pojk:2024:40", "penjelasan/pasal-1", None, False, [1.0, 0.0, 0.0], "Cukup jelas."),
     ("dsnmui:fatwa:117", "diktum-kedua", None, True, [0.5, 0.8, 0.0],
      "Dana yang berasal dari denda diperuntukkan sebagai dana sosial."),
+]
+# link: type, from document, from address, to document, to address, effective on
+LINKS = [
+    ("revokes", "ojk:pojk:2024:40", None, "ojk:pojk:2022:10", None, date(2025, 1, 1)),
+    ("revokes", "ojk:pojk:2026:9", None, "ojk:pojk:2024:40", None, date(2024, 6, 1)),  # older, yet what changes it
+    ("partly_revokes", "ojk:pojk:2023:22", None, "ojk:pojk:2022:10", "pasal-102", date(2023, 12, 1)),
+    ("amends", "ojk:pojk:2025:1", "pasal-i", "ojk:pojk:2022:10", "pasal-5/ayat-1", date(2025, 3, 1)),
+    ("amends", "ojk:pojk:2026:1", "pasal-i", "ojk:pojk:2022:10", "pasal-5", date(2026, 3, 1)),
+    ("refers_to", "ojk:pojk:2022:10", "pasal-7", "ojk:pojk:2022:10", "pasal-5", date(2022, 7, 4)),  # inside it
+    ("refers_to", "ojk:pojk:2024:40", "pasal-9", "ojk:pojk:2022:10", "pasal-5", date(2025, 1, 1)),
+    ("refers_to", "ojk:pojk:2024:40", "pasal-9", "ojk:pojk:2022:10", None, date(2025, 1, 1)),
+    ("legal_basis", "ojk:pojk:2022:10", None, "id:uu:2011:21", None, date(2022, 7, 4)),
+    ("refers_to", "ojk:pojk:2022:10", "pasal-50", "ojk:pojk:2016:77", "pasal-1", date(2022, 7, 4)),  # a neighbour
 ]
 
 
@@ -76,8 +90,9 @@ def seed(connection: psycopg.Connection) -> None:
     for document, (kind, issuer, status, effective_on, revoked_on) in DOCUMENTS.items():
         connection.execute(
             f"INSERT INTO {TABLES['meta_table']} (document_id, kind, citation, title, issuer, status, effective_on, "
-            "published_at, revoked_on) VALUES (%s, %s, %s, %s, %s, %s, %s, now(), %s)",
-            (document, kind, document, document, issuer, status, effective_on, revoked_on))
+            "published_at, revoked_on, status_history) VALUES (%s, %s, %s, %s, %s, %s, %s, now(), %s, %s)",
+            (document, kind, document, document, issuer, status, effective_on, revoked_on,
+             HISTORY if revoked_on else None))
     for document, address, valid_to, searchable, vector, wording in CHUNKS:
         chunk_id = f"{document}|{address}"
         kind, issuer, status, _, _ = DOCUMENTS[document]
@@ -89,6 +104,11 @@ def seed(connection: psycopg.Connection) -> None:
             (chunk_id, document, address, address, document, document, issuer, status, valid_to, wording, wording,
              searchable))
         connection.execute(f"INSERT INTO {TABLES['embed_table']} VALUES (%s, %s::vector)", (chunk_id, str(vector)))
+    table = links_table(TABLES["chunk_table"])
+    connection.execute(LINK_DDL.format(table=table))
+    for type_, from_document, from_address, to_document, to_address, effective_on in LINKS:
+        connection.execute(f"INSERT INTO {table} VALUES (%s, %s, %s, %s, %s, %s, 'high')",
+                           (type_, from_document, from_address, to_document, to_address, effective_on))
     # as the build counts them; with five units, a stem in more than one (dana: three) is common here
     connection.execute(STEMS_DDL.format(stems=stems_table(TABLES["chunk_table"]), chunks=TABLES["chunk_table"],
                                         share=0.25))
@@ -186,3 +206,95 @@ def test_an_index_in_its_own_schema_is_found_through_the_urls_search_path(store:
 
     assert schema.matches_words() and schema.dates_revocations()
     assert [p.address for p, _ in schema.by_words("denda sosial", 5)] == ["diktum-kedua"]
+
+
+def linked(store: PostgresStore, document: str, address: str | None = None, *, incoming: bool = True,
+           outgoing: bool = True, types: list[str] | None = None, limit: int = 25, offset: int = 0) -> list[tuple]:
+    rows = store.links(document, address, incoming=incoming, outgoing=outgoing, types=types or [], limit=limit,
+                       offset=offset)
+    return [(row.type, row.from_document, row.from_address, row.to_document, row.to_address) for row in rows]
+
+
+def test_a_documents_links_are_those_with_other_documents(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10")
+
+    assert ("refers_to", "ojk:pojk:2022:10", "pasal-7", "ojk:pojk:2022:10", "pasal-5") not in found
+    assert len(found) == 8
+
+
+def test_what_changes_a_document_comes_first_and_the_newest_of_each_type_leads(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10", incoming=True, outgoing=False)
+
+    assert [row[:2] for row in found[:4]] == [("revokes", "ojk:pojk:2024:40"), ("partly_revokes", "ojk:pojk:2023:22"),
+                                              ("amends", "ojk:pojk:2026:1"), ("amends", "ojk:pojk:2025:1")]
+
+
+def test_what_changes_a_text_comes_before_what_that_text_changes(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2024:40")
+
+    assert found[0] == ("revokes", "ojk:pojk:2026:9", None, "ojk:pojk:2024:40", None)
+    assert found[1] == ("revokes", "ojk:pojk:2024:40", None, "ojk:pojk:2022:10", None)
+
+
+def test_a_provision_has_the_links_on_it_and_inside_it(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10", "pasal-5", incoming=True, outgoing=False)
+
+    assert ("amends", "ojk:pojk:2026:1", "pasal-i", "ojk:pojk:2022:10", "pasal-5") in found
+    assert ("amends", "ojk:pojk:2025:1", "pasal-i", "ojk:pojk:2022:10", "pasal-5/ayat-1") in found
+
+
+def test_a_provision_has_what_its_own_document_says_of_it(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10", "pasal-5", incoming=True, outgoing=False)
+
+    assert ("refers_to", "ojk:pojk:2022:10", "pasal-7", "ojk:pojk:2022:10", "pasal-5") in found
+
+
+def test_what_changes_the_document_or_article_holding_a_provision_is_a_link_of_that_provision(
+        store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10", "pasal-5/ayat-1", incoming=True, outgoing=False)
+
+    assert ("revokes", "ojk:pojk:2024:40", None, "ojk:pojk:2022:10", None) in found
+    assert ("amends", "ojk:pojk:2026:1", "pasal-i", "ojk:pojk:2022:10", "pasal-5") in found
+
+
+def test_what_merely_cites_the_whole_document_is_no_link_of_a_provision(store: PostgresStore) -> None:
+    found = linked(store, "ojk:pojk:2022:10", "pasal-5/ayat-1", incoming=True, outgoing=False)
+
+    assert ("refers_to", "ojk:pojk:2024:40", "pasal-9", "ojk:pojk:2022:10", None) not in found
+    assert ("refers_to", "ojk:pojk:2024:40", "pasal-9", "ojk:pojk:2022:10", "pasal-5") not in found
+
+
+def test_a_neighbouring_address_is_not_a_part(store: PostgresStore) -> None:
+    assert linked(store, "ojk:pojk:2022:10", "pasal-5", incoming=False, outgoing=True) == []
+
+
+def test_links_narrow_to_the_types_and_direction_asked(store: PostgresStore) -> None:
+    assert linked(store, "ojk:pojk:2022:10", outgoing=False, types=["revokes"]) == [
+        ("revokes", "ojk:pojk:2024:40", None, "ojk:pojk:2022:10", None)]
+    assert linked(store, "ojk:pojk:2022:10", incoming=False, types=["legal_basis"]) == [
+        ("legal_basis", "ojk:pojk:2022:10", None, "id:uu:2011:21", None)]
+
+
+def test_links_page_without_repeating(store: PostgresStore) -> None:
+    every = linked(store, "ojk:pojk:2022:10")
+
+    assert linked(store, "ojk:pojk:2022:10", limit=3) + linked(store, "ojk:pojk:2022:10", limit=5, offset=3) == every
+
+
+def test_a_document_not_published_has_links_all_the_same(store: PostgresStore) -> None:
+    assert linked(store, "id:uu:2011:21") == [("legal_basis", "ojk:pojk:2022:10", None, "id:uu:2011:21", None)]
+
+
+def test_the_store_says_whether_the_index_holds_links(store: PostgresStore) -> None:
+    assert store.holds_links() is True
+    assert PostgresStore(store.url, dimension=DIMENSION, options=READ_ONLY, chunk_table="regulation_chunk_old",
+                         embed_table=TABLES["embed_table"], meta_table=TABLES["meta_table"]).holds_links() is False
+
+
+def test_a_documents_status_history_is_read_with_its_card(store: PostgresStore) -> None:
+    assert store.document("ojk:pojk:2022:10")["status_history"] == [
+        {"status": "revoked", "effective_from": "2025-01-01", "source": "links"}]
+
+
+def test_an_index_without_a_status_history_still_gives_the_card(store: PostgresStore) -> None:
+    assert store.document("dsnmui:fatwa:117")["status_history"] is None

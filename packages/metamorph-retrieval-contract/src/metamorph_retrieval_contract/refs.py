@@ -37,5 +37,16 @@ class Ref:
     def whole(self) -> Ref:
         return Ref(self.namespace, self.id)
 
+    def holds(self, other: Ref) -> bool:
+        """Whether `other` is this ref or a part of it: a document holds its articles, an article its paragraphs."""
+        if self.whole() != other.whole():
+            return False
+        if self.address is None or other.address == self.address:
+            return True
+        return other.address is not None and other.address.startswith(f"{self.address}/")
+
+    def overlaps(self, other: Ref) -> bool:
+        return self.holds(other) or other.holds(self)
+
     def __str__(self) -> str:
         return f"{self.namespace}:{self.id}" + (f"#{self.address}" if self.address is not None else "")
