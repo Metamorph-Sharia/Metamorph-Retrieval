@@ -22,9 +22,8 @@ dev = [
     "metamorph-retrieval-contract",
     "metamorph-retrieval-eval",
     "metamorph-market-retrieval[embeddings]",
-    "metamorph-retrieval-gateway[rerank]",
+    "metamorph-retrieval-gateway[otlp,rerank]",
     "metamorph-regulation-retrieval",
-    "opentelemetry-sdk>=1.25",
     "pytest>=8",
     "ruff>=0.6",
 ]

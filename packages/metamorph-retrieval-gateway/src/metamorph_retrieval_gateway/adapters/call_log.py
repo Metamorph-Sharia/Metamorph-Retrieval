@@ -50,5 +50,6 @@ def _line(call: Call) -> dict[str, object]:
         "id": line.pop("id"), "tool": line.pop("tool"), "arguments": line.pop("arguments"),
         "trace_id": trace["trace_id"] if trace else None, "span_id": trace["span_id"] if trace else None,
         "started_at": line.pop("started_at").isoformat(),
+        "stages": [stage | {"started_at": stage["started_at"].isoformat()} for stage in line.pop("stages")],
         **{key: list(value) if isinstance(value, tuple) else value for key, value in line.items()},
     }

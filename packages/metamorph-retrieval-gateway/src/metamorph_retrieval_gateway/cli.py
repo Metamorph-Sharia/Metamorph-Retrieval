@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import sys
 
 import uvicorn
@@ -35,6 +36,9 @@ def main(argv: list[str] | None = None) -> int:
         for tool in catalog.tools():
             print(f"{tool.name} {tool.version}: {tool.description.split('. ')[0]}.")
         return 0
+    # uvicorn raises SIGTERM again once it has shut down. Without this, that ends the process before its exit hooks,
+    # and the spans still waiting for their batch are lost.
+    signal.signal(signal.SIGTERM, lambda number, _: sys.exit(128 + number))
     uvicorn.run(http_app(catalog, host=arguments.host), host=arguments.host, port=arguments.port)
     return 0
 

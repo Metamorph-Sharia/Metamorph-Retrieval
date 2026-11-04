@@ -183,6 +183,13 @@ uv run metamorph-eval compare active.json candidate.json     # the activation ga
 
 `--provider` names any function that builds a provider with no arguments: a provider's own (`metamorph_market_retrieval.wiring:market_provider`), or the gateway's client (`metamorph_retrieval_gateway.client:from_environment`, with `METAMORPH_RETRIEVAL_GATEWAY_URL`).
 
+**Tracing a run in Langfuse:** serve the gateway with the settings in [connecting-an-agent.md](../docs/connecting-an-agent.md#tracing) and `METAMORPH_RETRIEVAL_TRACE_CONTENT=full`, then evaluate through its client. Each case's call is then its own trace, with its question, its refs and scores, and how long each provider and the reranker took.
+
+```sh
+METAMORPH_RETRIEVAL_GATEWAY_URL=http://localhost:8765 uv run metamorph-eval run eval/regulation/corpus.jsonl \
+    --provider metamorph_retrieval_gateway.client:from_environment --title "A run" --json report.json
+```
+
 ## What the market tools must return (for M2)
 
 The cases fix these conventions. The market provider's tools follow them:

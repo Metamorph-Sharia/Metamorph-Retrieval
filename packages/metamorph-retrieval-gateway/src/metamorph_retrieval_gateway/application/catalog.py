@@ -22,7 +22,7 @@ from metamorph_retrieval_contract.errors import InvalidArgument, RetrievalError,
 from metamorph_retrieval_contract.provider import JSON, RetrievalProvider, ToolSpec
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.schema import json_problems, load_schema, shape_schema
-from metamorph_retrieval_gateway.application.calls import TRACE, Call, CallLog, NoCallLog
+from metamorph_retrieval_gateway.application.calls import STAGES, TRACE, Call, CallLog, NoCallLog, Stage
 
 SEARCH = "search_documents"
 READ = "read"
@@ -53,12 +53,17 @@ class Catalog:
 
     def run(self, name: str, arguments: Mapping[str, Any]) -> JSON:
         started_at, began = datetime.now(UTC), time.perf_counter()
+        stages: list[Stage] = []
+        timing = STAGES.set(stages)
         try:
             output = self._answer(name, arguments)
         except RetrievalError as error:
-            self._record(Call(**_call(name, arguments, started_at, began), error=error.code, message=error.message))
+            self._record(Call(**_call(name, arguments, started_at, began, stages), error=error.code,
+                              message=error.message))
             raise
-        self._record(Call(**_call(name, arguments, started_at, began), **_summary(output)))
+        finally:
+            STAGES.reset(timing)
+        self._record(Call(**_call(name, arguments, started_at, began, stages), **_summary(output)))
         return output
 
     def _answer(self, name: str, arguments: Mapping[str, Any]) -> JSON:
@@ -97,9 +102,10 @@ def _operation(provider: RetrievalProvider, name: str, arguments: Mapping[str, A
     return provider.call(name, arguments)
 
 
-def _call(name: str, arguments: Mapping[str, Any], started_at: datetime, began: float) -> dict[str, Any]:
+def _call(name: str, arguments: Mapping[str, Any], started_at: datetime, began: float,
+          stages: list[Stage]) -> dict[str, Any]:
     return {"id": uuid.uuid4().hex, "tool": name, "arguments": dict(arguments), "trace": TRACE.get(),
-            "started_at": started_at, "duration_ms": (time.perf_counter() - began) * 1000}
+            "started_at": started_at, "duration_ms": (time.perf_counter() - began) * 1000, "stages": tuple(stages)}
 
 
 def _summary(output: JSON) -> dict[str, Any]:

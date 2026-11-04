@@ -9,11 +9,12 @@ across the agent and retrieval.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Protocol
+from datetime import UTC, datetime
+from typing import Protocol, TypeVar
 
 from metamorph_retrieval_contract.provider import JSON
 
@@ -27,9 +28,36 @@ class TraceContext:
     sampled: bool = True
 
 
+@dataclass(frozen=True)
+class Stage:
+    """One part of a call, timed: a provider's answer, or the reranking."""
+
+    name: str
+    started_at: datetime
+    duration_ms: float
+
+
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 TRACE: ContextVar[TraceContext | None] = ContextVar("trace", default=None)
+STAGES: ContextVar[list[Stage] | None] = ContextVar("stages", default=None)
+
+
+def timed(name: str, work: Callable[[], T]) -> Callable[[], T]:
+    """`work`, which notes how long it took on the call being recorded, from whichever thread runs it."""
+    stages = STAGES.get()
+    if stages is None:
+        return work
+
+    def run() -> T:
+        started_at, began = datetime.now(UTC), time.perf_counter()
+        try:
+            return work()
+        finally:
+            stages.append(Stage(name, started_at, (time.perf_counter() - began) * 1000))
+
+    return run
 
 
 @dataclass(frozen=True)
@@ -47,6 +75,7 @@ class Call:
     warnings: tuple[str, ...] = ()
     error: str | None = None  # the error's code, when it failed
     message: str | None = None  # and its message
+    stages: tuple[Stage, ...] = ()  # the parts it took, in the order they ended
 
 
 class CallLog(Protocol):

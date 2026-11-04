@@ -8,6 +8,10 @@
     METAMORPH_RETRIEVAL_RERANKER    a cross-encoder model reranking every search's candidates (Hugging Face name, e.g.
                                     cross-encoder/mmarco-mMiniLMv2-L12-H384-v1); unset: no reranking
     METAMORPH_RETRIEVAL_RERANK_CANDIDATES  how many fused candidates it reranks (default 50; fewer is faster)
+    METAMORPH_RETRIEVAL_TRACE_CONTENT      what a trace keeps of a question: metadata, the default, replaces any text;
+                                    full keeps it, for a trace store that may hold user text
+    OTEL_EXPORTER_OTLP_*            where traces go, with OpenTelemetry's own settings (adapters/trace_export.py);
+                                    with no endpoint, nowhere
 
 Providers are named, not imported, so the gateway depends on no provider: a new one joins by adding its factory.
 """
@@ -22,7 +26,8 @@ from pathlib import Path
 from metamorph_retrieval_contract.provider import RetrievalProvider
 from metamorph_retrieval_gateway.adapters.call_log import JsonLinesCallLog
 from metamorph_retrieval_gateway.adapters.reranker import CrossEncoderReranker
-from metamorph_retrieval_gateway.adapters.tracing import SpanCallLog
+from metamorph_retrieval_gateway.adapters.trace_export import export_spans
+from metamorph_retrieval_gateway.adapters.tracing import CONTENT, SpanCallLog
 from metamorph_retrieval_gateway.application.calls import AllCallLogs
 from metamorph_retrieval_gateway.application.catalog import Catalog
 from metamorph_retrieval_gateway.application.gateway import TIMEOUT, Gateway
@@ -33,6 +38,7 @@ TIMEOUT_SECONDS = "METAMORPH_RETRIEVAL_TIMEOUT"
 CALL_LOG = "METAMORPH_RETRIEVAL_CALL_LOG"
 RERANKER = "METAMORPH_RETRIEVAL_RERANKER"
 RERANK_CANDIDATES = "METAMORPH_RETRIEVAL_RERANK_CANDIDATES"
+TRACE_CONTENT = "METAMORPH_RETRIEVAL_TRACE_CONTENT"
 DEFAULT_PROVIDERS = ("metamorph_market_retrieval.wiring:market_provider,"
                      "metamorph_regulation_retrieval.wiring:regulation_provider")
 DEFAULT_CALL_LOG = "var/call-log"
@@ -41,8 +47,16 @@ EXAMPLE = "metamorph_market_retrieval.wiring:market_provider"
 
 def catalog_from(environment: Mapping[str, str]) -> Catalog:
     gateway = gateway_from(environment)
-    calls = AllCallLogs([JsonLinesCallLog(Path(environment.get(CALL_LOG, DEFAULT_CALL_LOG))), SpanCallLog()])
+    calls = AllCallLogs([JsonLinesCallLog(Path(environment.get(CALL_LOG, DEFAULT_CALL_LOG))), spans_from(environment)])
     return Catalog(gateway, calls=calls)
+
+
+def spans_from(environment: Mapping[str, str]) -> SpanCallLog:
+    content = environment.get(TRACE_CONTENT, CONTENT[0])
+    if content not in CONTENT:
+        raise ValueError(f"{TRACE_CONTENT}: {content}, not {' or '.join(CONTENT)}")
+    provider = export_spans(environment)
+    return SpanCallLog(provider.get_tracer(__name__) if provider else None, content=content)
 
 
 def gateway_from(environment: Mapping[str, str]) -> Gateway:

@@ -5,7 +5,7 @@ import time
 from dataclasses import replace
 
 import pytest
-from fakes import POJK_40, SearchingRegulations
+from fakes import POJK_40, Recorded, SearchingRegulations
 from memory_provider import MemoryProvider
 from retrieval_samples import regulation, release_passage, report_passage
 
@@ -13,6 +13,7 @@ from metamorph_retrieval_contract.errors import InvalidArgument
 from metamorph_retrieval_contract.evidence import Record
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import SearchRequest
+from metamorph_retrieval_gateway.application.catalog import Catalog
 from metamorph_retrieval_gateway.application.gateway import Gateway
 from metamorph_retrieval_gateway.application.reranking import NOT_RERANKED, rerank_text
 
@@ -102,3 +103,15 @@ def test_the_text_reranked_is_what_a_reader_sees_first() -> None:
     record = replace(report_passage(), body=Record({"register": "ojk:lpbbti", "listed": 7, "named": [{"ref": "x"}]}))
     assert rerank_text(record).endswith("register: ojk:lpbbti\nlisted: 7")
     assert rerank_text(release_passage().card()).count("\n") == 1  # a card: its citation and title
+
+
+def test_a_call_records_how_long_each_provider_and_the_reranker_took() -> None:
+    log = Recorded()
+    providers = [MemoryProvider(), SearchingRegulations()]
+    catalog = Catalog(Gateway(providers, reranker=ByLength(delay=0.01)), calls=log)
+
+    catalog.run("search_documents", {"query": QUESTION})
+
+    stages = {stage.name: stage for stage in log.calls[0].stages}
+    assert {provider.manifest().name for provider in providers} <= set(stages)
+    assert stages["rerank"].duration_ms >= 10

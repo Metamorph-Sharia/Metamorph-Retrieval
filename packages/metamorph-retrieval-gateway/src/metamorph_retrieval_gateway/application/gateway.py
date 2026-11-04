@@ -38,9 +38,10 @@ from metamorph_retrieval_contract.links import Link
 from metamorph_retrieval_contract.provider import JSON, Manifest, RetrievalProvider
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import MAX_LIMIT, LinksRequest, SearchRequest
+from metamorph_retrieval_gateway.application.calls import timed
 from metamorph_retrieval_gateway.application.enrichment import MAX_NAMED, card_fields, cited, named, past_budget
 from metamorph_retrieval_gateway.application.fusion import fuse, fused_page, merged_page, offset_of, ranked_page
-from metamorph_retrieval_gateway.application.reranking import CANDIDATES, NOT_RERANKED, Reranker, rerank_text
+from metamorph_retrieval_gateway.application.reranking import CANDIDATES, NOT_RERANKED, RERANK, Reranker, rerank_text
 from metamorph_retrieval_gateway.application.reranking import TIMEOUT as RERANK_TIMEOUT
 
 T = TypeVar("T")
@@ -114,8 +115,9 @@ class Gateway:
         fused = fuse([pages[name] for name in sorted(pages)])[: self.candidates]
         hits = [hit for hit, _ in fused]
         try:
-            scores = self.workers.submit(self.reranker.scores, request.query,  # type: ignore[union-attr]
-                                         [rerank_text(hit.evidence) for hit in hits])
+            texts = [rerank_text(hit.evidence) for hit in hits]
+            scores = self.workers.submit(timed(RERANK, lambda: self.reranker.scores(  # type: ignore[union-attr]
+                request.query, texts)))
             ranked = sorted(zip(hits, (float(score) for score in scores.result(timeout=self.rerank_timeout)),
                                 strict=True), key=lambda pair: -pair[1])
         except Exception:  # noqa: BLE001 - late or failed, the fused order stands
@@ -214,11 +216,11 @@ class Gateway:
 
     def _ask(self, name: str, question: Callable[[], T]) -> T:
         """One call to one provider, within the time budget."""
-        return self._answer(name, self.workers.submit(question))
+        return self._answer(name, self.workers.submit(timed(name, question)))
 
     def _ask_each(self, questions: Mapping[str, Callable[[], T]]) -> dict[str, T | ProviderUnavailable]:
         """Several providers at once, each within the time budget: each one's answer, or why it gave none."""
-        asked = {name: self.workers.submit(question) for name, question in questions.items()}
+        asked = {name: self.workers.submit(timed(name, question)) for name, question in questions.items()}
         answers: dict[str, T | ProviderUnavailable] = {}
         for name, answer in asked.items():
             try:

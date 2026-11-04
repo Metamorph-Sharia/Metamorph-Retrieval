@@ -84,3 +84,9 @@ def test_the_gateway_as_serve_builds_it_can_be_evaluated_in_process(monkeypatch)
     assert gateway.candidates == 50
     monkeypatch.setenv("METAMORPH_RETRIEVAL_RERANK_CANDIDATES", "25")
     assert gateway_from_environment().candidates == 25
+
+
+def test_a_trace_content_it_doesnt_know_says_so() -> None:
+    with pytest.raises(ValueError, match="METAMORPH_RETRIEVAL_TRACE_CONTENT: whole, not metadata or full"):
+        catalog_from({"METAMORPH_RETRIEVAL_PROVIDERS": "fakes:regulations",
+                      "METAMORPH_RETRIEVAL_TRACE_CONTENT": "whole"})

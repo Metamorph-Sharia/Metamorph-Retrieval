@@ -175,6 +175,13 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
 
 **Latency:** a search was 0.7 s at p95 before the regulation provider and the reranker. Fewer candidates trade quality for speed. So does more hardware, which the role doesn't allow (the table above).
 
+## Traces on AWS: not yet on
+
+The deployed gateway (image `4d9cb5d`) has no exporter. To send its spans to Langfuse:
+1. Build and push an image from this code. The image has the `otlp` extra already, as it installs every extra.
+2. Write the header as a SecureString, `/metamorph/retrieval/otel-headers`, with the value from [connecting-an-agent.md](connecting-an-agent.md#tracing).
+3. In the gateway's task definition, add `OTEL_EXPORTER_OTLP_ENDPOINT` to its environment, and `OTEL_EXPORTER_OTLP_HEADERS` to its `Secrets`, from that parameter.
+
 ## Rolling back
 
 - **The gateway:** deploy the retrieval stack with the previous tag (`RetrievalTag=724c16d`), and the dev stack with `GatewayTask=metamorph-retrieval-gateway:1`. The old image doesn't read `retrieval_regulation`, so the index can stay.

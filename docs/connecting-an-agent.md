@@ -94,7 +94,29 @@ An answer over 100,000 bytes is refused as `invalid_argument`; ask for less (a l
 
 ## Tracing
 
-Send W3C trace context and each call joins your trace: `_meta.traceparent` over MCP, the `traceparent` header over HTTP. The gateway emits an OpenTelemetry span per call (`execute_tool {name}`), and keeps a call log (`var/call-log/calls-YYYY-MM-DD.jsonl`, 30 days) with the arguments, the refs returned, scores, index versions and your trace id. When an answer goes wrong, send us the trace id.
+Send W3C trace context and each call joins your trace: `_meta.traceparent` over MCP, the `traceparent` header over HTTP. The gateway emits an OpenTelemetry span per call (`execute_tool {name}`), holding a span per stage: each provider's answer, and the reranking. It also keeps a call log (`var/call-log/calls-YYYY-MM-DD.jsonl`, 30 days) with the arguments, the refs returned, scores, stage timings, index versions and your trace id. When an answer goes wrong, send us the trace id.
+
+**Sending spans to Langfuse.** They go out over OTLP only when an endpoint is set, with OpenTelemetry's own settings, so the gateway depends on no tracing product. The gateway must run with the `otlp` extra, which the image and the development environment have.
+
+```sh
+export OTEL_EXPORTER_OTLP_ENDPOINT="$LANGFUSE_BASE_URL/api/public/otel"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic%20$(printf %s "$LANGFUSE_PUBLIC_KEY:$LANGFUSE_SECRET_KEY" | base64 | tr -d '\n' | sed 's/=/%3D/g; s/+/%2B/g; s#/#%2F#g'),x-langfuse-ingestion-version=4"
+uv run metamorph-gateway serve
+```
+
+| In Langfuse | What it shows |
+|---|---|
+| Type | `retriever` for a search, `tool` for anything else |
+| Input | The call's arguments |
+| Output | The refs returned, with their scores |
+| Level | `ERROR` for a failed call. `WARNING` for one that answered but was degraded, such as results not reranked; the reason is the status message |
+| Metadata | `result_count`, `top_score`, `index_versions`, `empty_reason`, `warnings`, `call_id`, all filterable |
+| Children | One span per stage, timed as it ran |
+
+- **Questions stay out of traces by default.** Any argument text holding a space becomes `[redacted]`, the same rule as mira-ai-chatbot's. Set `METAMORPH_RETRIEVAL_TRACE_CONTENT=full` to keep them, only for a Langfuse that may store user text.
+- **Tracing never costs an answer.** Spans go in batches on their own thread, and a failed export only logs. The last batch is sent when the server stops.
+- **Calling `Gateway` in process records nothing,** as `gateway_from_environment` does: spans belong to the catalog, which `metamorph-gateway serve` runs. To trace an evaluation run, serve the gateway and evaluate through its client ([eval/README.md](../eval/README.md)).
+- **Reading traces back:** Langfuse 4 runs `events_only`, so `/api/public/traces` is gone. Use `/api/public/v2/observations?traceId=...&fields=core,basic,io,metadata`.
 
 ## Since the regulatory provider joined (M5)
 
