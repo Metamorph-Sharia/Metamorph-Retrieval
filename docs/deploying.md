@@ -19,7 +19,7 @@ The gateway, its reranker and the regulation index, on the existing ECS services
 
 **The models** are baked into the image at pinned revisions (`Dockerfile`), and tasks read only them (`HF_HUB_OFFLINE=1`).
 
-**`DNNL_DEFAULT_FPMATH_MODE=BF16`** has torch's oneDNN do matrix maths in bf16 on Graviton3, which Fargate's arm64 tasks run on: the CPU has `bf16` and `i8mm`. Measured in a task on 2026-11-03, 50 rerank pairs:
+**`DNNL_DEFAULT_FPMATH_MODE=BF16`** has torch's oneDNN do matrix maths in bf16 on Graviton3, whose CPU has `bf16` and `i8mm`. **Fargate doesn't promise that CPU.** An arm64 task lands on Graviton3 (`CPU part 0xd40`) or Graviton2 (`0xd0c`, no `bf16`), and the setting does nothing on Graviton2: the reranker then misses its 5 s budget on every search (below). Of five tasks on 2026-11-04, three were on Graviton3 and one on Graviton2, read from `/proc/cpuinfo`, and one was on Graviton2 by its timings. Measured on Graviton3 on 2026-11-03, 50 rerank pairs:
 
 | Runtime | Time |
 |---|---|
@@ -69,7 +69,8 @@ Run it from Metamorph-Knowledge-Platform, with the helpers of its `docs/aws-depl
 
 3. The dev stack first. It names the gateway's task definition instead of importing it, so the retrieval stack can register a new revision. With revision 1, the one it runs now, nothing restarts:
    ```bash
-   deploy dev/retrieval --parameter-overrides GatewayTask=metamorph-retrieval-gateway:1
+   aws cloudformation deploy --stack-name metamorph-retrieval-dev --template-file deploy/aws/dev/retrieval.yaml \
+     --tags Owner=project3 --parameter-overrides GatewayTask=metamorph-retrieval-gateway:1
    ```
 4. Then the retrieval stack: the new image, 8 GB, the reranker, `PGOPTIONS`. The `retrieval-gateway` service stays at 0 until the index exists:
    ```bash
@@ -110,6 +111,8 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
    metamorph-eval run eval/market/cases.jsonl --provider metamorph_retrieval_gateway.wiring:gateway_from_environment
    ```
    - **The gate:** at least the Mac's results in `eval/README.md` (regulation through the reranking gateway 15 of 42; market 52 of 54).
+   - **Check the task's CPU first:** `grep -m1 'CPU part' /proc/cpuinfo`. On Graviton2 the gate measures that CPU, not the build: exit and run another task.
+   - **To gate a build before activating it,** point the task at its tables with `METAMORPH_REGULATION_CHUNK_TABLE`, `METAMORPH_REGULATION_EMBED_TABLE` and `METAMORPH_REGULATION_META_TABLE` (`regulation_chunk_<date>`, and so on).
    - **Latency:** a search's p95 on 2 vCPU, which the reranker raises. Before this change it was 701 ms.
    - **Reranking fewer candidates** is faster: run the sets again with `METAMORPH_RETRIEVAL_RERANK_CANDIDATES=25`.
      - On the Mac: 13 of 42 instead of 15 (market unchanged).
@@ -128,9 +131,28 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
 9. Move the development service to the new revision:
    ```bash
    REVISION=$(aws ecs describe-task-definition --task-definition metamorph-retrieval-gateway --query taskDefinition.revision --output text)
-   deploy dev/retrieval --parameter-overrides GatewayTask=metamorph-retrieval-gateway:$REVISION
+   aws cloudformation deploy --stack-name metamorph-retrieval-dev --template-file deploy/aws/dev/retrieval.yaml \
+     --tags Owner=project3 --parameter-overrides GatewayTask=metamorph-retrieval-gateway:$REVISION
    ```
    Then run the question sets through `https://d2ae8k1h45zs74.cloudfront.net` with the dev token, as `docs/connecting-an-agent.md` shows.
+
+## Deployed on 2026-11-04: links
+
+| Gate on the new index, 25 candidates | Regulation set | Market set | Federated set | A search | A `follow_links` |
+|---|---|---|---|---|---|
+| Inside the VPC, on Graviton3 (**what runs**) | 14 of 42 | 52 of 54 | 25 of 27, links 13 of 13 | p50 3.0 s, p95 4.1 s | p50 50 ms, p95 57 ms |
+| Inside the VPC, on Graviton2 | 9 of 42 | 52 of 54 | 24 of 27, links 13 of 13 | p50 7.1 s, p95 8.4 s; 20 of 20 not reranked | p50 51 ms |
+| Through the public development address | 14 of 42 | 52 of 54 | 25 of 27 | | |
+
+**What runs:**
+- **Image:** `metamorph/retrieval:4d9cb5d`.
+- **Task definitions:** `metamorph-retrieval-gateway:5`, for both `retrieval-gateway` and `retrieval-gateway-dev`; and `metamorph-retrieval:5`.
+- **Index:** `2026-11-04`, live in `retrieval_regulation`: 577,539 chunks, 179,523 vectors, 137,123 links, 2,561 documents with their status histories. The build took 15 minutes, seeded from the 2026-11-03 vectors, 295 embedded in the task.
+- **The tables before it** are kept as `regulation_*_live__old`, about 2.6 GB, to roll back.
+
+**Open:** which CPU `retrieval-gateway`'s task landed on can't be read from outside it. A replaced task can land on Graviton2, and then every search falls back to fused order with `NOT_RERANKED`.
+
+**A gateway decides once whether the index holds links.** One asked before the activation keeps answering without them until it restarts.
 
 ## Deployed on 2026-11-03
 
@@ -156,4 +178,4 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
 
 - **The gateway:** deploy the retrieval stack with the previous tag (`RetrievalTag=724c16d`), and the dev stack with `GatewayTask=metamorph-retrieval-gateway:1`. The old image doesn't read `retrieval_regulation`, so the index can stay.
 - **The reranker alone:** remove `METAMORPH_RETRIEVAL_RERANKER` from the gateway task. Searches then come back in fused order.
-- **The index:** `drop schema retrieval_regulation cascade` removes it. Friend 2's trial tables (`public.bench_*`, about 5.5 GB) are separate, and this deployment doesn't touch them.
+- **The index:** the last build's tables are `regulation_*_live__old`; rename them back over the live names, in one transaction. `drop schema retrieval_regulation cascade` removes the index altogether. Friend 2's trial tables (`public.bench_*`, about 5.5 GB) are separate, and this deployment doesn't touch them.

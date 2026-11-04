@@ -104,6 +104,8 @@ Federated set:
 |---|---|---|---|---|
 | [2026-11-04, through the gateway, 25 rerank candidates](federated/runs/2026-11-04-gateway.md) | 25 of 27 | 0.93 | 0.81 | Every link case passes, 13 of 13. Two searches miss, both real: the rule on minimum equity is asked as "pindar", a word only OJK's releases use; and "persyaratan perizinan penyelenggara" within POJK 40/2024 misses Pasal 10. Local index, without UU 27/2022 |
 
+| [2026-11-04, on AWS, through the public development address](federated/runs/2026-11-04-aws-public.md) | 25 of 27 | 0.93 | 0.81 | The same result, on the live index with UU 27/2022 |
+
 With links and merging in, the regulation set stays at 15 of 42 (50 candidates) and the market set at 52 of 54.
 
 ## Measures

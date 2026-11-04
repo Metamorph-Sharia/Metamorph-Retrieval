@@ -1,0 +1,538 @@
+{
+  "overall": {
+    "name": "all",
+    "cases": 27,
+    "passed": 25,
+    "recall": 0.9259259259259259,
+    "mrr": 0.8086419753086419
+  },
+  "by_tool": [
+    {
+      "name": "find_provision",
+      "cases": 1,
+      "passed": 1,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "follow_links",
+      "cases": 13,
+      "passed": 13,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "industry_context",
+      "cases": 1,
+      "passed": 1,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "search_documents",
+      "cases": 12,
+      "passed": 10,
+      "recall": 0.8333333333333334,
+      "mrr": 0.5694444444444444
+    }
+  ],
+  "by_phase": [
+    {
+      "name": "industry",
+      "cases": 6,
+      "passed": 6,
+      "recall": 1.0,
+      "mrr": 0.6805555555555555
+    },
+    {
+      "name": "product",
+      "cases": 1,
+      "passed": 1,
+      "recall": 1.0,
+      "mrr": 1.0
+    },
+    {
+      "name": "compliance",
+      "cases": 20,
+      "passed": 18,
+      "recall": 0.9,
+      "mrr": 0.8375
+    }
+  ],
+  "cases": [
+    {
+      "id": "links-what-revoked-pojk-10-2022",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40",
+        "doc:ojk:pojk:2024:40#pasal-236"
+      ]
+    },
+    {
+      "id": "links-article-of-a-revoked-regulation",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40",
+        "doc:ojk:pojk:2024:40#pasal-236",
+        "doc:ojk:pojk:2022:10#pasal-106/ayat-1",
+        "doc:ojk:pojk:2022:10#pasal-15/ayat-1",
+        "doc:ojk:pojk:2022:10#pasal-15/ayat-1",
+        "doc:ojk:pojk:2022:10#pasal-15/ayat-1",
+        "doc:ojk:pojk:2022:10#pasal-5/ayat-3"
+      ]
+    },
+    {
+      "id": "links-what-revoked-an-article",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2026:8",
+        "doc:ojk:pojk:2026:8#pasal-33",
+        "doc:ojk:pojk:2024:40#pasal-187/ayat-2",
+        "doc:ojk:pojk:2024:40#pasal-187/ayat-3",
+        "doc:ojk:pojk:2024:40#pasal-187/ayat-4",
+        "doc:ojk:pojk:2024:40#pasal-187/ayat-5",
+        "doc:ojk:pojk:2024:40#pasal-187/ayat-6",
+        "doc:ojk:pojk:2024:40#pasal-191/ayat-1"
+      ]
+    },
+    {
+      "id": "links-what-changes-a-regulation-comes-first",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2026:8",
+        "release:ojk:siaran-pers:2026:rdkb-september-2026#p-26",
+        "doc:ojk:pojk:2026:8#pasal-33",
+        "release:ojk:siaran-pers:2026:langkah-pengawasan-ojk-terhadap-pt-lunaria-annua-teknologi-koinp2p#p-2",
+        "doc:ojk:pojk:2022:10",
+        "release:ojk:siaran-pers:2026:rdkb-des-2025#p-26",
+        "doc:ojk:pojk:2022:10",
+        "release:ojk:siaran-pers:2025:rdkb-agustus-2025#p-24"
+      ]
+    },
+    {
+      "id": "links-what-amended-the-ojk-law",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:id:uu:2023:4"
+      ]
+    },
+    {
+      "id": "links-what-a-regulation-revoked",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2022:10",
+        "doc:ojk:pojk:2022:10"
+      ]
+    },
+    {
+      "id": "links-what-a-regulation-rests-on",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:id:uu:2011:21",
+        "doc:id:uu:2023:4"
+      ]
+    },
+    {
+      "id": "links-what-replaced-a-circular",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:seojk:2024:3#romawi-vii/angka-1",
+        "doc:ojk:seojk:2024:3"
+      ]
+    },
+    {
+      "id": "links-references-inside-a-regulation",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-137/ayat-4",
+        "doc:ojk:pojk:2024:40#pasal-137/ayat-8"
+      ]
+    },
+    {
+      "id": "links-a-fatwa-cites-a-fatwa",
+      "tool": "follow_links",
+      "phase": "product",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:dsnmui:fatwa:13",
+        "doc:dsnmui:fatwa:25",
+        "doc:dsnmui:fatwa:27",
+        "doc:dsnmui:fatwa:1"
+      ]
+    },
+    {
+      "id": "federated-links-both-layers",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40",
+        "release:ojk:siaran-pers:2025:ojk-fokus-penguatan-pengawasan-dan-penyelesaian-permasalahan-di-industri-pindar#p-1",
+        "doc:ojk:pojk:2024:40#pasal-236",
+        "release:ojk:siaran-pers:2024:stabilitas-sektor-jasa-keuangan-terjaga-di-tengah-meningkatnya-risiko-geopolitik-rdkb-okt-2024#p-8",
+        "doc:ojk:pojk:2023:22",
+        "release:ojk:siaran-pers:2024:ojk-cabut-izin-usaha-pt-investree-radhika-jaya#p-1",
+        "doc:ojk:pojk:2023:22",
+        "release:ojk:siaran-pers:2024:ojk-menghormati-putusan-mahkamah-agung-dan-terus-perkuat-pengaturan-dan-pengawasan-fintech-p2p-lending#p-1",
+        "doc:ojk:pojk:2023:22",
+        "report:ojk:roadmap:2023:lpbbti#p-7",
+        "doc:ojk:pojk:2016:77",
+        "report:ojk:roadmap:2023:lpbbti#p-21",
+        "doc:ojk:pojk:2016:77",
+        "report:ojk:roadmap:2023:lpbbti#p-29",
+        "doc:ojk:pojk:2021:4#pasal-30",
+        "release:ojk:siaran-pers:2023:peluncuran-roadmap-fintech-p2p-lending-2023-2028#p-4",
+        "doc:ojk:seojk:2024:1",
+        "release:ojk:siaran-pers:2023:sektor-jasa-keuangan-tetap-resilien-di-tengah-berlanjutnya-divergensi-pemulihan-perekonomian-dunia#p-7",
+        "doc:ojk:seojk:2023:19",
+        "release:ojk:siaran-pers:2023:sektor-jasa-keuangan-terjaga-stabil-di-tengah-divergensi-perekonomian-global#p-7",
+        "doc:ojk:seojk:2022:21",
+        "release:ojk:siaran-pers:2022:ojk-perkuat-operasional-fintech-peer-to-peer-lending#p-1",
+        "doc:id:uu:2011:21",
+        "report:ojk:lpksi:2022#p-68"
+      ]
+    },
+    {
+      "id": "federated-links-first-page-holds-both-layers",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2022:10",
+        "report:ojk:roadmap:2023:lpbbti#p-7",
+        "doc:ojk:pojk:2022:10#pasal-118",
+        "report:ojk:roadmap:2023:lpbbti#p-21",
+        "doc:ojk:pojk:2021:4",
+        "release:ojk:siaran-pers:2022:ojk-perkuat-operasional-fintech-peer-to-peer-lending#p-1",
+        "doc:ojk:pojk:2021:4",
+        "report:ojk:lpksi:2017#p-244"
+      ]
+    },
+    {
+      "id": "federated-links-from-an-announcement-to-the-rule",
+      "tool": "follow_links",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "company:ojk:lpbbti:kep-45-d.05-2019",
+        "doc:ojk:pojk:2022:10"
+      ]
+    },
+    {
+      "id": "federated-search-bpr-core-capital-rule",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2026:7#pasal-14/ayat-1",
+        "doc:ojk:pojk:2026:7#pasal-14/ayat-3",
+        "doc:ojk:pojk:2026:7#pasal-8/ayat-1",
+        "report:ojk:lpksi:2016#p-43",
+        "doc:ojk:pojk:2026:7#penjelasan/pasal-24",
+        "doc:ojk:pojk:2026:7#penjelasan/pasal-15/ayat-4",
+        "doc:ojk:pojk:2026:7#pasal-4",
+        "doc:ojk:pojk:2026:7#penjelasan/pasal-14/ayat-3"
+      ]
+    },
+    {
+      "id": "federated-search-bpr-core-capital-rule-in-english",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "problems": [],
+      "returned": [
+        "report:ojk:lpksi:2016#p-43",
+        "doc:ojk:pojk:2026:7#pasal-14/ayat-1",
+        "doc:ojk:pojk:2026:7#pasal-25/ayat-1",
+        "doc:ojk:pojk:2026:7#pasal-14/ayat-3",
+        "doc:ojk:pojk:2026:7#pasal-8/ayat-1",
+        "doc:ojk:pojk:2026:7#penjelasan/pasal-15/ayat-4",
+        "doc:ojk:seojk:2025:2#romawi-v",
+        "doc:ojk:pojk:2026:7#pasal-15/ayat-2"
+      ]
+    },
+    {
+      "id": "federated-search-bpr-core-capital-announced",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2026:pojk-nomor-7-tahun-2026-kewajiban-penyediaan-modal-minimum-dan-pemenuhan-modal-inti-minimum-bank-perekonomian-rakyat#p-1",
+        "release:ojk:siaran-pers:2022:ojk-terbitkan-ketentuan-batas-maksimum-pemberian-kredit-bpr-dan-batas-maksimum-penyaluran-dana-bprs#p-1",
+        "release:ojk:siaran-pers:2021:ojk-terbitkan-peraturan-penyelenggaraan-produk-bpr-dan-bprs-dan-batas-maksimum-pembiayaan-bank-umum-syariah#p-2",
+        "release:ojk:siaran-pers:2026:pojk-3-tahun-2026-dan-pojk-5-tahun-2026#p-2",
+        "release:ojk:siaran-pers:2022:ojk-terbitkan-ketentuan-batas-maksimum-pemberian-kredit-bpr-dan-batas-maksimum-penyaluran-dana-bprs#p-2",
+        "release:ojk:siaran-pers:2022:perkuat-perkreditan-dan-manajemen-risiko-ojk-terbitkan-dua-pojk-perbankan#p-2",
+        "release:ojk:siaran-pers:2024:ojk-terbitkan-peraturan-perkuat-penerapan-tata-kelola-bpr-bprs#p-1",
+        "release:ojk:siaran-pers:2025:rdkb-maret-2025#p-21"
+      ]
+    },
+    {
+      "id": "federated-search-pindar-economic-benefit-rule",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-2",
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-1",
+        "release:ojk:siaran-pers:2025:ojk-pengaturan-bunga-pinjaman-daring-untuk-lindungi-konsumen#p-1",
+        "doc:ojk:seojk:2025:19#romawi-xiv",
+        "release:ojk:siaran-pers:2025:rdkb-desember-2024#p-22",
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-3",
+        "report:ojk:roadmap:2023:lpbbti#p-20",
+        "doc:ojk:pojk:2024:40#pasal-140/ayat-3"
+      ]
+    },
+    {
+      "id": "federated-search-pindar-economic-benefit-announced",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-1",
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-2",
+        "release:ojk:siaran-pers:2024:lpbbti-dan-bnpl#p-3",
+        "release:ojk:siaran-pers:2025:rdkb-desember-2024#p-22",
+        "release:ojk:siaran-pers:2025:ojk-pengaturan-bunga-pinjaman-daring-untuk-lindungi-konsumen#p-1",
+        "release:ojk:siaran-pers:2025:ojk-meresmikan-program-dukungan-asuransi-dalam-penguatan-ekosistem-penyelenggaraan-pinjaman-daring#p-1",
+        "release:ojk:siaran-pers:2026:langkah-pengawasan-ojk-terhadap-pt-lunaria-annua-teknologi-koinp2p#p-2",
+        "release:ojk:siaran-pers:2023:peluncuran-roadmap-fintech-p2p-lending-2023-2028#p-4"
+      ]
+    },
+    {
+      "id": "federated-search-pindar-minimum-equity-rule",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-169/ayat-1"
+      ],
+      "returned": [
+        "release:ojk:siaran-pers:2025:rdkb-agustus-2025#p-11",
+        "release:ojk:siaran-pers:2025:rdkb-november-2025#p-11",
+        "release:ojk:siaran-pers:2026:rdkb-juli-2026#p-10",
+        "release:ojk:siaran-pers:2026:rdkb-april-2026#p-9",
+        "release:ojk:siaran-pers:2026:rdkb-mei-2026#p-9",
+        "release:ojk:siaran-pers:2026:rdkb-juni-2026#p-11",
+        "release:ojk:siaran-pers:2025:rdkb-juni-2025#p-8",
+        "release:ojk:siaran-pers:2025:rdkb-juli-2025#p-10"
+      ]
+    },
+    {
+      "id": "federated-search-pindar-minimum-equity-announced",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2025:rdkb-agustus-2025#p-11",
+        "release:ojk:siaran-pers:2025:rdkb-november-2025#p-11",
+        "release:ojk:siaran-pers:2025:rdkb-juni-2025#p-8",
+        "release:ojk:siaran-pers:2026:rdkb-juli-2026#p-10",
+        "release:ojk:siaran-pers:2026:rdkb-april-2026#p-9",
+        "release:ojk:siaran-pers:2026:rdkb-mei-2026#p-9",
+        "release:ojk:siaran-pers:2026:rdkb-juni-2026#p-11",
+        "release:ojk:siaran-pers:2025:rdkb-juli-2025#p-10"
+      ]
+    },
+    {
+      "id": "federated-search-bank-spin-off-both-layers",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "problems": [],
+      "returned": [
+        "doc:id:uu:2008:21#pasal-68/ayat-1",
+        "report:ojk:lpksi:2022#p-29",
+        "report:ojk:roadmap:2023:rp3si#p-12",
+        "doc:id:uu:2023:4#pasal-15/pasal-68/ayat-1",
+        "report:ojk:roadmap:2023:rp3si#p-11",
+        "doc:id:uu:2023:4#penjelasan/pasal-95a/ayat-13/huruf-r/angka-32",
+        "doc:bi:pbi:2021:13#pasal-17",
+        "doc:bi:padg:2019:22#pasal-47/ayat-1"
+      ]
+    },
+    {
+      "id": "federated-search-bank-spin-off-lately",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "release:ojk:siaran-pers:2026:industri-perbankan-syariah-tumbuh-solid-berkelanjutan#p-2",
+        "release:ojk:siaran-pers:2026:rdkb-juni-2026#p-27",
+        "release:ojk:siaran-pers:2026:rdkb-feb-2026#p-24",
+        "release:ojk:siaran-pers:2026:rdkb-maret-2026#p-22",
+        "release:ojk:siaran-pers:2026:rdkb-juli-2026#p-27",
+        "release:ojk:siaran-pers:2026:rdkb-september-2026#p-31",
+        "release:ojk:siaran-pers:2026:rdkb-agustus-2026#p-28",
+        "release:ojk:siaran-pers:2026:rdkb-juli-2026#p-28"
+      ]
+    },
+    {
+      "id": "federated-search-insurance-spin-off-both-layers",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2023:11#pasal-10/ayat-1",
+        "doc:ojk:pojk:2023:11#pasal-10/ayat-8",
+        "report:ojk:lpksi:2019#p-79",
+        "doc:ojk:pojk:2023:11#pasal-4/ayat-1",
+        "doc:ojk:pojk:2023:11#pasal-7/ayat-1",
+        "doc:id:uu:2023:4#pasal-52/pasal-87/ayat-1",
+        "release:ojk:siaran-pers:2023:ojk-terbitkan-aturan-pemisahan-unit-syariah-perusahaan-asuransi-dan-perusahaan-reasuransi#p-2",
+        "doc:ojk:pojk:2023:11#pasal-10/ayat-4"
+      ]
+    },
+    {
+      "id": "federated-search-insurance-spin-off-announced",
+      "tool": "search_documents",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "report:ojk:lpksi:2022#p-62",
+        "report:ojk:roadmap:2023:rp3si#p-43",
+        "report:ojk:lpksi:2018#p-55",
+        "report:ojk:lpksi:2020#p-86",
+        "report:ojk:lpksi:2019#p-52",
+        "report:ojk:lpksi:2018#p-93",
+        "report:ojk:lpksi:2023#p-139",
+        "report:ojk:lpksi:2017#p-290"
+      ]
+    },
+    {
+      "id": "federated-hop-industry-to-its-regulations",
+      "tool": "industry_context",
+      "phase": "industry",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "industry:ojk:portal:layanan-pendanaan-bersama-berbasis-teknologi-informasi-lpbbti-syariah",
+        "industry:ojk:portal:bank-umum-syariah",
+        "industry:ojk:portal:bank-perekonomian-rakyat-bpr-syariah"
+      ]
+    },
+    {
+      "id": "federated-hop-search-within-those-regulations",
+      "tool": "search_documents",
+      "phase": "compliance",
+      "passed": false,
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "problems": [
+        "not in the first 8: doc:ojk:pojk:2024:40#pasal-10/ayat-1"
+      ],
+      "returned": [
+        "doc:ojk:pojk:2024:40#lampiran",
+        "doc:ojk:pojk:2024:40#pasal-66/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-131/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-169/ayat-2",
+        "doc:ojk:pojk:2024:40#pasal-33/ayat-1",
+        "doc:ojk:pojk:2024:40#pasal-148/ayat-4",
+        "doc:ojk:pojk:2024:40#pasal-31",
+        "doc:ojk:pojk:2024:40#pasal-58/ayat-5"
+      ]
+    },
+    {
+      "id": "federated-hop-a-named-citation",
+      "tool": "find_provision",
+      "phase": "compliance",
+      "passed": true,
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "problems": [],
+      "returned": [
+        "doc:ojk:pojk:2024:40#pasal-137/ayat-3"
+      ]
+    }
+  ],
+  "unheld": []
+}

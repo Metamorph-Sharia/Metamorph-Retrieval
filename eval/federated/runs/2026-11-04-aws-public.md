@@ -1,0 +1,24 @@
+# federated through the public development address, 2026-11-04
+
+| Tool | Cases | Passed | Recall@k | MRR |
+|---|---|---|---|---|
+| all | 27 | 25 | 0.93 | 0.81 |
+| find_provision | 1 | 1 | 1.00 | 1.00 |
+| follow_links | 13 | 13 | 1.00 | 1.00 |
+| industry_context | 1 | 1 | 1.00 | 1.00 |
+| search_documents | 12 | 10 | 0.83 | 0.57 |
+
+## By phase
+
+| Phase | Cases | Passed | Recall@k | MRR |
+|---|---|---|---|---|
+| industry | 6 | 6 | 1.00 | 0.68 |
+| product | 1 | 1 | 1.00 | 1.00 |
+| compliance | 20 | 18 | 0.90 | 0.84 |
+
+## Failures (2)
+
+- **federated-search-pindar-minimum-equity-rule** (search_documents, compliance): Berapa ekuitas minimum penyelenggara pindar?
+  - not in the first 8: doc:ojk:pojk:2024:40#pasal-169/ayat-1
+- **federated-hop-search-within-those-regulations** (search_documents, compliance): What does a new P2P lender need to be licensed, under the rules in force today?
+  - not in the first 8: doc:ojk:pojk:2024:40#pasal-10/ayat-1
