@@ -8,17 +8,19 @@ since a doc: ref's address is a unit's (the retrieval contract). A paragraph and
 the article holding it then never compete for one place in a ranking, and neither
 does an item with its paragraph.
 
-The recipe is the one measured on the benchmark: the provision's own wording,
-prefixed with its document title and the address written as a lawyer writes it.
-Splitting over-long provisions was tested and lost on ranking, so it is not done
-here; the model truncates at its sequence length instead, and the `token_count`
-column records how long the context was so that truncation is visible.
+The context is the provision's own wording, prefixed with what places it: the
+document's citation and title, the headings above it, and the address written as
+a lawyer writes it. A paragraph rarely names its topic; the section holding it
+does. Splitting over-long provisions was tested and lost on ranking, so it is not
+done here; the model truncates at its sequence length instead, and the
+`token_count` column records how long the context was so that truncation is visible.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 PAGE_MARKER = re.compile(r"<!--\s*page\s+\d+\s*-->", re.I)
@@ -29,6 +31,16 @@ STRUCTURAL = re.compile(
     r"^(pasal|ayat|bab|bagian|paragraf|huruf|angka|diktum)\s+[ivxlc0-9a-z]+[.)]?$", re.I
 )
 NO_INFORMATION = {"cukup jelas", "dihapus", "tidak ada", "tidak diatur", "-", ""}
+# The places a text names for itself, as "Pasal 3", "Ayat (1)", or an item's "(1)", "a." and "1.".
+PLACE = re.compile(
+    r"\b(?:pasal|ayat|bab|bagian|paragraf|huruf|angka|diktum)\s+\(?(?:\d+[a-z]?|[ivxlc]+|[a-z])\)?", re.I
+)
+ITEM = re.compile(r"\(?[0-9a-z]{1,4}[.)]", re.I)
+WORD = re.compile(r"[^\W\d_]{2,}")
+# Fewer words than this beside "cukup jelas" or "dihapus" say nothing of their own. Measured on the corpus's 81,800
+# units holding either phrase on 2026-11-04: it keeps 1,833 of the 1,865 of 200 characters or more. About 50 of the
+# 2,197 it keeps are the phrase beside a page's running header, as long as real wording, so a higher count loses more.
+OWN_WORDING = 8
 
 # A chunk is searchable unless it is one of these. `not_a_unit` is the bulk: an
 # article holding paragraphs, or an item inside one. Of the rest, `cukup_jelas` is
@@ -49,7 +61,7 @@ from ts_stat('select words from {chunks} where searchable')
 PROVISIONS = """
 select p.document_id, p.text_sha256, p.address, p.kind, p.label, p.heading,
        d.issuer, d.status, p.valid_from, p.valid_to, p.body, d.title, d.citation,
-       u.address is not null as unit
+       u.address is not null as unit, p.heading_path
 from published.provision p
 join published.document d on d.id = p.document_id
 left join published.provision_unit u on u.document_id = p.document_id and u.address = p.address
@@ -165,6 +177,7 @@ class Provision:
     title: str
     citation: str | None
     unit: bool = True  # a retrieval unit (published.provision_unit)
+    heading_path: Sequence[str] = ()  # from the document down to the provision
 
 
 @dataclass(frozen=True)
@@ -247,37 +260,51 @@ def provision_label(address: str) -> str:
     return ", ".join(labels)
 
 
-def significance_flags(body: str, label: str | None, heading: str | None) -> list[str]:
+def says_only(phrase: str, normalised: str) -> bool:
+    """Whether a text is `phrase` and little else: "cukup jelas" and "dihapus" are ordinary words in a provision too."""
+    if phrase not in normalised:
+        return False
+    return len(WORD.findall(PLACE.sub(" ", normalised.replace(phrase, " ")))) < OWN_WORDING
+
+
+def significance_flags(body: str, heading: str | None) -> list[str]:
     """Why a provision might not be worth searching. Stored, not hidden."""
     normalised = re.sub(r"\s+", " ", body).strip().lower().rstrip(".")
     flags: list[str] = []
     if normalised in NO_INFORMATION:
         flags.append("no_information")
-    if "cukup jelas" in normalised:
+    if says_only("cukup jelas", normalised):
         flags.append("cukup_jelas")
-    if "dihapus" in normalised:
+    if says_only("dihapus", normalised):
         flags.append("dihapus")
     if STRUCTURAL.fullmatch(normalised):
         flags.append("structural")
-    if label and "cukup jelas" in label.lower():
-        flags.append("cukup_jelas")
-    if label and "dihapus" in label.lower():
-        flags.append("dihapus")
     if heading and STRUCTURAL.fullmatch(heading.strip().lower().rstrip(".")):
         flags.append("structural")
     return flags
 
 
+def headings_above(path: Sequence[str]) -> str:
+    """The headings on a provision's path that say something: "Pasal 137" or "(4)" only mark a place."""
+    return " > ".join(entry for entry in path if not (PLACE.fullmatch(entry) or ITEM.fullmatch(entry)))
+
+
+def context_of(provision: Provision, body: str) -> str:
+    lines = (provision.citation, provision.title, headings_above(provision.heading_path),
+             provision_label(provision.address), body)
+    return "\n".join(line for line in lines if line)
+
+
 def chunk(provision: Provision, snapshot: str) -> Chunk:
     body, had_page_markers = clean(provision.body)
-    flags = significance_flags(body, provision.label, provision.heading)
+    flags = significance_flags(body, provision.heading)
     if not provision.unit:
         flags.append("not_a_unit")
     if had_page_markers:
         flags.append("page_markers_removed")
-    context = f"{provision.title}\n{provision_label(provision.address)}\n{body}"
+    context = context_of(provision, body)
     return Chunk(
-        chunk_id=f"{provision.document_id}|{provision.text_sha256}|{provision.address}|{md5(body)}|0",
+        chunk_id=f"{provision.document_id}|{provision.text_sha256}|{provision.address}|{md5(context)}|0",
         document_id=provision.document_id,
         text_sha256=provision.text_sha256,
         source_address=provision.address,

@@ -79,7 +79,7 @@ Run it from Metamorph-Knowledge-Platform, with the helpers of its `docs/aws-depl
 
 ### 4. The regulation index
 
-Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-03), so a first build there would take more than a day. Vectors move between builds by chunk instead. A chunk's id names its document, its text, its address and its wording, so its vector is the same wherever it is built. So the first build is seeded with vectors made where embedding is fast, and the task embeds only the chunks they don't cover. A later refresh embeds only what changed.
+Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-03), so a first build there would take more than a day. Vectors move between builds by chunk instead. A chunk's id names its document, its text, its address and what the model reads, so its vector is the same wherever it is built, and a change to the context gives new ids and so new vectors. So the first build is seeded with vectors made where embedding is fast, and the task embeds only the chunks they don't cover. A later refresh embeds only what changed.
 
 5. On a machine with a GPU, build the index, or keep one built, then export its vectors and share them through the operations bucket:
    ```bash
@@ -99,6 +99,7 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
    ```
    - **The log** says how many vectors were taken, then embeds the rest.
    - **An index built before 2026-11-04 has no links.** `follow_links` then says so in a warning and answers with the market's links alone, until a build makes `regulation_chunk_live_links` and each document's status history. Nothing else changes, so the same vectors seed that build.
+   - **Vectors made before the context change don't seed a build after it.** Since 2026-11-04 the model reads each unit's citation and headings too, so every chunk id is new, and a build seeded with `regulation-vectors-2026-11-03.copy.gz` would take none of its vectors and embed everything in the task. Export fresh vectors first (step 5). The headings come from `published.provision.heading_path`, so the platform database must have that column.
    - **The first build activates without a judgement:** there is no active index to compare with. Later builds run `scripts/refresh-regulation-index.sh`, which judges the new snapshot against the active one before activating it.
    - **Check:** `metamorph-regulation-index versions` lists the snapshot as `live`.
 

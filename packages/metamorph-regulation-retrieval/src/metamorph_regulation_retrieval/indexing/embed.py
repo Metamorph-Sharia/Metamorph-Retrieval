@@ -110,9 +110,9 @@ def embed(
     return written
 
 
-# Vectors between builds. A chunk's id names its document, its text's hash, its address and its wording's hash, so
-# its vector is the same wherever the chunk is built: a build can take another's (one made where embedding is fast)
-# and embed only the chunks they don't cover. The file is gzipped COPY text: chunk id, tab, vector.
+# Vectors between builds. A chunk's id names its document, its text's hash, its address and the hash of what the model
+# reads, so its vector is the same wherever the chunk is built: a build can take another's (one made where embedding is
+# fast) and embed only the chunks they don't cover. The file is gzipped COPY text: chunk id, tab, vector.
 
 EXPORT = """
 copy (select e.chunk_id, e.embedding from {embed} e join {chunk} c using (chunk_id) where c.searchable

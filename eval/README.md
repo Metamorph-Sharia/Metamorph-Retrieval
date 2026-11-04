@@ -6,6 +6,8 @@ Retrieval is judged on its own, apart from the agent's answers, so that "retriev
 |---|---|---|
 | [`market/cases.jsonl`](market/cases.jsonl) | 54 | The market provider: companies, industry context, figures, series, report and release passages, links, reading, errors |
 | [`regulation/cases.jsonl`](regulation/cases.jsonl) | 42 | Regulation search: mira-ai-chatbot's golden questions, asked as they are, for the retrieval units each answer needs (54 refs) |
+| [`regulation/corpus.jsonl`](regulation/corpus.jsonl) | 64 | Regulation search across the corpus: units drawn at random from every kind of instrument. Open to reading and tuning |
+| [`regulation/holdout.jsonl`](regulation/holdout.jsonl) | 36 | The same draw, kept apart: its failures aren't read and nothing is tuned on it, so it stays a blind check |
 | [`federated/cases.jsonl`](federated/cases.jsonl) | 27 | Both layers together: links between regulations and to what OJK said of them, a rule and what the regulator said of it, and the hops from an industry to its rules |
 
 ## A case
@@ -78,6 +80,60 @@ When the data changes, `metamorph-eval run` lists any expected ref the provider 
 | [Through the gateway, market and regulation fused](regulation/runs/2026-11-03-gateway.md) | 9 of 42 | 0.21 | 0.05 | A search of every kind: market passages take some of the 8 places |
 | [Through the gateway, fused and reranked](regulation/runs/2026-11-03-gateway-reranked.md) | 15 of 42 | 0.38 | 0.34 | The gateway's reranker (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, 50 candidates, 256 tokens) reads each candidate against the question, on one scale across providers. On AWS the gateway reranks 25 candidates (below) |
 | On AWS, inside the VPC (index `2026-11-03`, UU 27/2022 included; bf16 maths) | provider alone 13 of 42; gateway reranking 25 candidates 14 of 42 (what runs); 50 candidates 16 of 42 | | | Market set 52 of 54 either way. [docs/deploying.md](../docs/deploying.md) has the latency |
+| Index before the context change, local, UU 27/2022 included: [25 candidates](regulation/runs/2026-11-04-before-context-25.md), [50](regulation/runs/2026-11-04-before-context-50.md) | 14 of 42; 16 of 42 | 0.36; 0.43 | 0.31; 0.38 | The same scores as on AWS, so the row below compares directly with what runs |
+| Citation and headings embedded, local: [25 candidates](regulation/runs/2026-11-04-context-25.md), [50](regulation/runs/2026-11-04-context-50.md) | **16 of 42; 19 of 42** | **0.45; 0.49** | **0.39; 0.39** | See below. Not on AWS |
+
+**Embedding what places a unit** (2026-11-04). The model used to read a unit's title, its address and its own wording. It now reads the document's citation and the headings above the unit too, so a paragraph that never names its regulation or topic can be found by them. The word search reads them as well. A small fix went in with it: "dihapus" or "cukup jelas" anywhere in a unit used to drop it from search, and now only when it says little else (2,197 units return).
+
+| | Before | After |
+|---|---|---|
+| Gateway, 25 candidates | 14 of 42 | 16 of 42: 2 gained, 0 lost |
+| Gateway, 50 candidates | 16 of 42 | 19 of 42: 4 gained, 1 lost (golden-016, from 2nd to 9th) |
+| Provider alone | 13 of 42, MRR 0.14 | 14 of 42, MRR 0.23: 2 gained, 1 lost |
+| Expected refs by meaning, in the first 50 | 24 of 54 | 30 of 54 |
+| Expected refs in neither search's first 200 | 20 of 54 | 15 of 54 |
+| Market set, 25 candidates | 52 of 54 | 52 of 54, the same cases |
+| Federated set, 25 candidates | 25 of 27 | 25 of 27, the same cases |
+
+- **On these 42 questions alone, the gained and lost cases can't be told from chance,** though by meaning 24 refs rank higher and 8 lower (sign test p = 0.007). The wider sets below settle it.
+- **An earlier test promised more.** It re-embedded a pool of 10,060 units and translated the English questions, and went from 17 to 23 of 39. Units outside the pool couldn't compete, so that test overstated the gain.
+- **Some units lose.** Of the 8 refs that rank lower by meaning, UU 27/2022's Pasal 20 ayat (2) fell from 9th to 99th, and two left the first 200 (golden-010, from 53rd; golden-034, from 112th). Those cases failed before too, so no score shows it. Why they fell wasn't looked into.
+- **It costs a full re-embedding,** and the seed vectors of earlier builds no longer apply ([docs/deploying.md](../docs/deploying.md)).
+
+**The corpus and holdout sets** (2026-11-04). The golden questions cover little of the corpus: 32 of their 54 refs are in POJK 40/2024, and most kinds of instrument never appear. No usage logs exist to draw on, so these 100 cases were written from the corpus, by Claude, under rules fixed before any result was seen.
+
+- **The draw:** seeded (20261104), in nine groups, at most one unit a document, from units `in_force_on` 2026-11-04 keeps. The groups' sizes are a choice: POJK 22, SEOJK 12, PBI 12, PADG 10, SEBI 5, fatwa 12, UU 10, PP 5, others 12.
+- **The question's style was drawn too,** per unit, so easy forms couldn't be favoured: language (English 42 of 100, more than the golden set's 26%), whether it names its regulation (54), and direct or a scenario (52 scenarios). The check in the build confirmed every question follows its draw.
+- **Accepted in drawn order:** 130 units were read and 30 rejected as nothing a practitioner could ask of them alone: repeals, signature blocks, delegations, bare cross-references, forms, tables of contents. A list of definitions was rejected unless the question names its regulation.
+- **Expected refs:** the drawn unit, one per case. A question that doesn't name its regulation also accepts units in force elsewhere with nearly the same wording (word-trigram Jaccard of 0.6 or more; 2 cases).
+- **The split:** 35% of each group, seeded, into the holdout. The 42 golden cases stay in their own file, so their scores stay comparable, and because they've been looked at too often to be blind.
+
+Through the gateway, local index, before and after embedding the citation and headings:
+
+| Set | 25 candidates | Recall, MRR at 25 | 50 candidates |
+|---|---|---|---|
+| [Golden](regulation/runs/2026-11-04-context-25.md), 42 | 14 → 16 (+2, −0) | 0.36 → 0.45, 0.31 → 0.39 | 16 → 19 (+4, −1) |
+| [Corpus](regulation/runs/2026-11-04-corpus-context-25.md), 64 | 47 → 55 (+8, −0) | 0.73 → 0.86, 0.57 → 0.67 | 50 → 56 (+7, −1) |
+| [Holdout](regulation/runs/2026-11-04-holdout-context-25.md), 36 | 32 → 33 (+1, −0) | 0.88 → 0.90, 0.74 → 0.74 | 32 → 32 (+0, −0) |
+
+- **The change holds up.** All 100 new questions were written after it was built, so they're a fresh test of it: 79 → 88 at 25 candidates, 9 gained and none lost (sign test p = 0.004). At 50, 82 → 88, 7 gained and 1 lost (p = 0.07).
+- **The holdout alone shows little,** because it began at 32 of 36 and only 4 cases could rise. Its higher start is within what a random split gives (Fisher p = 0.08).
+- **Don't average these sets, or read 88 of 100 as how the system does.** The golden set is much harder: its questions need several clauses (1 of 11 pass) or inference, and crowd one densely covered topic (single-clause cases pass 15 of 31). A random unit is often on a niche topic with few rivals. The new questions were also written by someone who had read the answer, though the corpus set shares no more words with its answers than the golden set does (a median 0.36 of a question's words for both; 0.50 for the holdout). The golden set shows depth, these sets breadth.
+- **The citation seems to have done most of it.** Of the 100, questions naming their regulation went 44 → 52 of 54, and those that don't 35 → 36 of 46. Citation and headings went in together, so this is suggestive only: telling them apart takes another full build.
+- **Where it still fails** (the 100, after, 25 candidates):
+
+  | Questions | Passed |
+  |---|---|
+  | Indonesian | 56 of 58 |
+  | English | 32 of 42 |
+  | Name their regulation | 52 of 54 |
+  | Don't | 36 of 46 |
+  | Direct | 43 of 48 |
+  | Scenario | 45 of 52 |
+
+  By group, SEOJK (8 of 12) and fatwas (9 of 12) are lowest.
+- **The corpus failures were read,** all 9. Seven are English. One is a false miss: `corpus-bi-sebi-04` found PADG 20/2025, which answers it as well as the expected unit. So a miss is usually a real one, and these scores are at most slightly low. In `corpus-bi-pbi-05` the same rule came back from another regulation, not the one the question names.
+- **What these sets can't show:** questions needing several clauses, real users' wording, or answers that are out of date. A unit passing `in_force_on` may still have been changed by a later regulation.
 
 **How each change counted,** on the same vectors (2026-11-03):
 
