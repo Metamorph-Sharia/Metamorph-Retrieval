@@ -26,6 +26,7 @@ from metamorph_retrieval_contract.evidence import (
     Provenance,
     Qualifiers,
     Record,
+    Strength,
     Text,
 )
 from metamorph_retrieval_contract.links import Direction, Link, LinkType
@@ -84,6 +85,7 @@ def _(hit: Hit) -> JSON:
         "score": hit.score,
         "matched_by": sorted(match.value for match in hit.matched_by),
         "evidence": to_dict(hit.evidence),
+        **({"strength": hit.strength.value} if hit.strength else {}),
     }
 
 
@@ -105,6 +107,7 @@ def _(page: Page) -> JSON:
         "cursor": page.cursor,
         "empty_reason": page.empty_reason.value if page.empty_reason else None,
         "warnings": list(page.warnings),
+        **({"total": page.total} if page.total is not None else {}),
     }
 
 
@@ -256,6 +259,7 @@ def _hit(data: Mapping[str, Any]) -> Hit:
         rank=data["rank"],
         score=data["score"],
         matched_by=frozenset(MatchedBy(match) for match in data["matched_by"]),
+        strength=Strength(data["strength"]) if data.get("strength") else None,
     )
 
 
@@ -276,6 +280,7 @@ def _page(data: Mapping[str, Any], item: Callable[[Mapping[str, Any]], T]) -> Pa
         cursor=data["cursor"],
         empty_reason=EmptyReason(reason) if reason else None,
         warnings=tuple(data["warnings"]),
+        total=data.get("total"),
     )
 
 

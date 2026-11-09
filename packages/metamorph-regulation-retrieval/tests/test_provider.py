@@ -93,6 +93,9 @@ class FakeStore:
             "effective_on": None, "published_at": PUBLISHED, "aliases": ["POJK 40/2024"],
         }
 
+    def kinds(self):
+        return frozenset(passage.doc_kind for passage in PASSAGES)
+
     def published_at(self):
         return PUBLISHED
 
@@ -123,7 +126,7 @@ def test_it_owns_doc_refs_and_offers_exact_lookup() -> None:
     manifest = provider().manifest()
 
     assert manifest.namespaces == frozenset({"doc"})
-    assert "fatwa" in manifest.kinds
+    assert manifest.kinds == frozenset({"regulation"})  # what the index holds, not every kind there is
     assert manifest.links is True
     assert [tool.name for tool in manifest.tools] == [FIND]
 

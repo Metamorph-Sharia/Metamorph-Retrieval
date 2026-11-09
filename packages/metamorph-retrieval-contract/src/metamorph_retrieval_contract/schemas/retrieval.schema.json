@@ -126,7 +126,11 @@
         "matched_by": {
           "type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["semantic", "words"]}
         },
-        "evidence": {"$ref": "#/$defs/evidence"}
+        "evidence": {"$ref": "#/$defs/evidence"},
+        "strength": {
+          "enum": ["strong", "weak"],
+          "description": "How much the reranker judged a hit to be about the question. Absent when none judged it; weak: probably not about it"
+        }
       }
     },
     "link": {
@@ -146,7 +150,8 @@
       "properties": {
         "cursor": {"$ref": "#/$defs/cursor"},
         "empty_reason": {"enum": ["no_match", "filters_exclude_all", null]},
-        "warnings": {"type": "array", "items": {"type": "string"}}
+        "warnings": {"type": "array", "items": {"type": "string"}},
+        "total": {"type": "integer", "minimum": 0, "description": "How many items all the pages hold together, when the tool counts them"}
       }
     },
     "hit_page": {
@@ -154,7 +159,7 @@
       "allOf": [{"$ref": "#/$defs/page_fields"}],
       "properties": {
         "items": {"type": "array", "items": {"$ref": "#/$defs/hit"}},
-        "cursor": true, "empty_reason": true, "warnings": true
+        "cursor": true, "empty_reason": true, "warnings": true, "total": true
       },
       "additionalProperties": false
     },
@@ -164,7 +169,7 @@
       "allOf": [{"$ref": "#/$defs/page_fields"}],
       "properties": {
         "items": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
-        "cursor": true, "empty_reason": true, "warnings": true
+        "cursor": true, "empty_reason": true, "warnings": true, "total": true
       },
       "additionalProperties": false
     },
@@ -173,7 +178,7 @@
       "allOf": [{"$ref": "#/$defs/page_fields"}],
       "properties": {
         "items": {"type": "array", "items": {"$ref": "#/$defs/link"}},
-        "cursor": true, "empty_reason": true, "warnings": true
+        "cursor": true, "empty_reason": true, "warnings": true, "total": true
       },
       "additionalProperties": false
     },

@@ -58,6 +58,15 @@ def test_find_series_finds_the_dataset_then_its_series_by_label() -> None:
     assert hit.evidence.body.fields["dataset"] == {"ref": "dataset:bi:seki:tabel1_1"}
 
 
+def test_a_series_hit_says_which_table_it_counts_and_omits_an_industry_it_has_none() -> None:
+    hit = FindSeries(MemoryMarket()).run(SeriesQuery("uang beredar luas M2")).items[0]
+
+    assert hit.evidence.ref == M2_REF
+    assert hit.evidence.body.fields["dataset_name"] == (
+        "I. UANG DAN BANK: I.1. UANG BEREDAR DAN FAKTOR-FAKTOR YANG MEMPENGARUHINYA")
+    assert "industry" not in hit.evidence.body.fields  # a macro table counts no industry
+
+
 def test_find_series_ranks_by_the_words_of_the_dataset_and_the_label_together() -> None:
     page = FindSeries(MemoryMarket()).run(SeriesQuery("uang dan bank sempit"))
 

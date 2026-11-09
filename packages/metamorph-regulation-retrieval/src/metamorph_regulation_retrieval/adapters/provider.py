@@ -93,7 +93,7 @@ class RegulationProvider:
             name=self.name,
             version=VERSION,
             namespaces=frozenset({"doc"}),
-            kinds=frozenset(KINDS),
+            kinds=self.store.kinds(),  # those held: narrowing to another would only empty the page
             links=True,
             tools=(FIND_TOOL,),
             index_version=self.index_version,

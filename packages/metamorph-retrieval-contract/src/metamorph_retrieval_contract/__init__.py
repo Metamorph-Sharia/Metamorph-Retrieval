@@ -27,6 +27,7 @@ from metamorph_retrieval_contract.evidence import (
     Provenance,
     Qualifiers,
     Record,
+    Strength,
     Text,
 )
 from metamorph_retrieval_contract.links import Direction, Link, LinkType
@@ -67,6 +68,7 @@ __all__ = [
     "Samples",
     "SearchRequest",
     "Sort",
+    "Strength",
     "Text",
     "ToolCall",
     "ToolSpec",

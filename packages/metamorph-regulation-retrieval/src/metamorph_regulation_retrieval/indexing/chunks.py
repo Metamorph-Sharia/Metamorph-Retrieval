@@ -85,6 +85,14 @@ where d.id <> all(%s)
 order by d.id
 """
 
+# A document's outline: its headings and the provisions directly under it. The build groups them (domain.outline).
+OUTLINE = """
+select p.document_id, p.address, p.kind, p.parent_address, p.ordinal, p.depth, p.heading_path, p.heading
+from published.provision p
+where p.document_id <> all(%s)
+order by p.document_id, p.ordinal
+"""
+
 # The contract's links between documents and provisions: a document's own structure (contains, elucidates) isn't one.
 # A link takes effect when the document stating it does, which is how the platform dates what links change.
 LINKS = """
@@ -156,7 +164,8 @@ create table {table} (
   published_at timestamptz,
   aliases text[],
   revoked_on date,
-  status_history jsonb
+  status_history jsonb,
+  outline jsonb
 )
 """
 

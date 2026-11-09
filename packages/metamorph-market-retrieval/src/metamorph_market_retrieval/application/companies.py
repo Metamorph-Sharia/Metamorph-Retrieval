@@ -61,6 +61,9 @@ class FindCompanies:
         self.read_model = read_model
 
     def run(self, query: CompanyQuery) -> Page[Hit] | Page[Evidence]:
+        if query.register is not None and self.read_model.register(query.register) is None:
+            known = sorted({industry.register for industry in self.read_model.industries() if industry.register})
+            raise InvalidArgument(f"register {query.register!r} isn't one; the registers are {', '.join(known)}")
         candidates = self._candidates(query)
         if not candidates:
             return Page.empty(EmptyReason.FILTERS_EXCLUDE_ALL)
@@ -72,7 +75,9 @@ class FindCompanies:
         ordered = sorted(candidates, key=lambda candidate: (candidate.company.legal_name.casefold(),
                                                             candidate.company.id))
         page = paged(ordered, query.limit, query.cursor, EmptyReason.NO_MATCH)
-        return Page(self._evidence(page.items, query), page.cursor)
+        if not page.items:
+            return page
+        return Page(self._evidence(page.items, query), page.cursor, total=len(ordered))
 
     def _by_name(self, name: str, candidates: Sequence[_Candidate], query: CompanyQuery) -> Page[Hit]:
         by_id = {candidate.company.id: candidate for candidate in candidates}
@@ -85,7 +90,7 @@ class FindCompanies:
         return Page(tuple(
             Hit(item, rank=rank, score=match.score, matched_by=frozenset({MatchedBy.WORDS}))
             for rank, (item, (_, match)) in enumerate(zip(evidence, page.items, strict=True), start=first_rank)
-        ), page.cursor)
+        ), page.cursor, total=len(ranked))  # all pages together: counting never needs the pages
 
     def _candidates(self, query: CompanyQuery) -> list[_Candidate]:
         if query.as_of is None:

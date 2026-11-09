@@ -28,6 +28,11 @@ class MatchedBy(StrEnum):
     WORDS = "words"
 
 
+class Strength(StrEnum):
+    STRONG = "strong"
+    WEAK = "weak"  # probably not about the question
+
+
 class EmptyReason(StrEnum):
     NO_MATCH = "no_match"  # rephrase
     FILTERS_EXCLUDE_ALL = "filters_exclude_all"  # widen the filters
@@ -116,6 +121,7 @@ class Hit:
     rank: int  # from 1
     score: float  # comparable only within one provider and one call
     matched_by: frozenset[MatchedBy]
+    strength: Strength | None = None  # None: nothing judged it, as a provider's own search doesn't
 
     def __post_init__(self) -> None:
         if self.rank < 1:
@@ -133,6 +139,7 @@ class Page(Generic[Item]):
     cursor: str | None = None  # pass it back for the next page; None when there is none
     empty_reason: EmptyReason | None = None
     warnings: tuple[str, ...] = field(default=())  # what a provider couldn't do, e.g. a filter it doesn't apply
+    total: int | None = None  # how many items all its pages hold together, when the tool counts them
 
     def __post_init__(self) -> None:
         if not self.items and self.empty_reason is None:

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 
 from market_samples import (
@@ -87,6 +88,26 @@ def test_a_series_without_figures_is_its_card_naming_its_dataset() -> None:
 
     assert body.fields["dataset"] == {"ref": "dataset:bi:seki:tabel1_1"}
     assert (body.fields["first_period"], body.fields["last_period"]) == ("2010-01", "2026-08")
+
+
+def test_a_series_card_names_its_datasets_industry_and_table_so_a_figure_cannot_be_read_whole() -> None:
+    total_aset = replace(
+        SEKI_1_1,
+        industry="Layanan Pendanaan Bersama Berbasis Teknologi Informasi (LPBBTI) Konvensional",
+        group="Rincian Aset",
+        metric="Total Aset",
+    )
+
+    assert isinstance((body := series_evidence(replace(M2, dataset=total_aset)).body), Record)
+    assert body.fields["industry"] == "Layanan Pendanaan Bersama Berbasis Teknologi Informasi (LPBBTI) Konvensional"
+    assert body.fields["dataset_name"] == "Rincian Aset: Total Aset"
+
+
+def test_a_series_card_omits_the_fields_its_dataset_has_not() -> None:
+    nameless = replace(SEKI_1_1, group="", metric="")
+
+    assert isinstance((body := series_evidence(replace(M2, dataset=nameless)).body), Record)
+    assert "industry" not in body.fields and "dataset_name" not in body.fields
 
 
 def test_a_dataset_names_its_register_regulations_and_reports_when_it_has_them() -> None:

@@ -8,14 +8,23 @@ port: the gateway's application knows no model, and the wiring chooses one, or n
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any, Protocol
 
-from metamorph_retrieval_contract.evidence import Evidence, Record, Text
+from metamorph_retrieval_contract.evidence import Evidence, Hit, Record, Strength, Text
 
 CANDIDATES = 50  # fused candidates reranked: enough to lift one from far down, few enough to be fast
 TIMEOUT = 5.0  # seconds the reranker has; past them, the fused order stands
 NOT_RERANKED = "results in fused order: the reranker didn't answer in time"
 RERANK = "rerank"  # its stage in a call
+
+# This reranker's raw logits, measured on the local index with cross-encoder/mmarco-mMiniLMv2-L12-H384-v1: of 136
+# eval queries the corpus answers, no best hit scored under -2.45 (of the 104 expected ones, -2.92), while ten
+# off-topic ones ("resep rendang", "who won the 2022 world cup") best scored -4.2 to -8.3; under 0 went 5 of the 136.
+# Another reranker scores on another scale: set both again on the eval.
+FLOOR = -4.0  # below it, a candidate is about nothing asked: dropped
+WEAK = 0.0  # below it, a hit probably isn't about the question
+NOTHING_RELEVANT = "nothing scored as relevant: rephrase the question, or conclude the sources hold nothing on it"
 
 
 class Reranker(Protocol):
@@ -33,6 +42,12 @@ def rerank_text(evidence: Evidence) -> str:
     elif isinstance(evidence.body, Record):
         lines.extend(f"{name}: {value}" for name, value in _plain(evidence.body.fields))
     return "\n".join(line for line in lines if line)
+
+
+def judged(ranked: Sequence[tuple[Hit, float]]) -> list[tuple[Hit, float]]:
+    """The reranked candidates worth showing, each with its strength; those under the floor are left out."""
+    return [(replace(hit, strength=Strength.WEAK if score < WEAK else Strength.STRONG), score)
+            for hit, score in ranked if score >= FLOOR]
 
 
 def _plain(fields: Mapping[str, Any]) -> list[tuple[str, Any]]:

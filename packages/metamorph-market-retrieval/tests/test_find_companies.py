@@ -77,6 +77,33 @@ def test_a_page_at_a_time_with_a_cursor_for_the_rest() -> None:
     assert (ids(rest), rest.cursor) == ([INVESTREE.id], None)
 
 
+def test_a_cursor_past_the_last_page_finds_nothing_rather_than_failing() -> None:
+    page = find(register="ojk:lpbbti", limit=2, cursor="100")
+
+    assert (page.items, page.empty_reason) == ((), EmptyReason.NO_MATCH)
+
+
+def test_a_page_says_how_many_companies_its_filters_hold_not_just_its_own_count() -> None:
+    page = find(register="ojk:lpbbti", limit=1)
+    named = find(query="DANA SYARIAH", limit=1)
+
+    assert (len(page.items), page.total) == (1, 3)
+    assert (len(named.items), named.total) == (1, 1)
+
+
+def test_a_register_that_isnt_one_is_refused_with_those_there_are() -> None:
+    with pytest.raises(InvalidArgument, match="the registers are ojk:lpbbti"):
+        find(register="lpbbti")
+
+
+def test_every_page_of_the_same_filters_says_the_same_total() -> None:
+    first = find(register="ojk:lpbbti", limit=2)
+    rest = find(register="ojk:lpbbti", limit=2, cursor=first.cursor)
+    past = find(as_of=date(2020, 6, 30), limit=1)
+
+    assert (first.total, rest.total, past.total) == (3, 3, 3)
+
+
 @pytest.mark.parametrize(
     ("query", "message"),
     [

@@ -6,12 +6,17 @@ so a failed run leaves the previous snapshot answering (ADR-002).
 
 from __future__ import annotations
 
+import json
 import time
+from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 import psycopg
 
 from ..domain.links import ORDER
+from ..domain.outline import OutlineProvision, document_outline
 from .chunks import (
     CHUNK_DDL,
     COMMON_SHARE,
@@ -19,6 +24,7 @@ from .chunks import (
     LINK_DDL,
     LINKS,
     META_DDL,
+    OUTLINE,
     PROVISIONS,
     STEMS_DDL,
     Chunk,
@@ -116,16 +122,27 @@ def build(snapshot: str, tables: Tables, *, limit: int | None = None) -> int:
 def build_metadata(tables: Tables) -> int:
     with psycopg.connect(published_url()) as source:
         rows = source.execute(DOCUMENTS, (excluded_documents(),)).fetchall()
+        outline = outlines(source.execute(OUTLINE, (excluded_documents(),)))
     with psycopg.connect(index_url()) as target:
         with target.cursor() as cursor:
             cursor.execute(f"drop table if exists {table_name(tables.meta)}")
             cursor.execute(META_DDL.format(table=table_name(tables.meta)))
             with cursor.copy(f"copy {tables.meta} from stdin") as copy:
                 for row in rows:
-                    copy.write_row(row)
+                    copy.write_row((*row, json.dumps(outline[row[0]], ensure_ascii=False) if row[0] in outline
+                                    else None))
         target.commit()
     print(f"documents: {len(rows):,}", flush=True)
     return len(rows)
+
+
+def outlines(provisions: Iterable[tuple[Any, ...]]) -> dict[str, list[dict[str, Any]]]:
+    """Each document's outline, from its provisions as OUTLINE selects them."""
+    by_document: dict[str, list[OutlineProvision]] = defaultdict(list)
+    for document_id, address, kind, parent, ordinal, depth, path, title in provisions:
+        by_document[document_id].append(OutlineProvision(address, kind, parent, ordinal or 0, depth or 0,
+                                                         tuple(path or ()), title))
+    return {document_id: document_outline(rows) for document_id, rows in by_document.items()}
 
 
 def build_links(tables: Tables) -> int:

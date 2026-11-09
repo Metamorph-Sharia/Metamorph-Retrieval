@@ -8,6 +8,7 @@ must fit the size budget, so one call never floods the agent's context. Each cal
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import time
@@ -137,9 +138,11 @@ READ_TOOL = ToolSpec(
     description=(
         "Read one ref in full: a report's or a release's passage, a company, a register, a dataset, a series, an "
         "industry, a sector, or a regulation or one of its provisions (doc:ojk:pojk:2024:40#pasal-5/ayat-1). Use it on "
-        "any ref another tool returned, to quote it or to check what it says. For a passage, window gives that many "
-        "passages either side. Returns one piece of evidence: its citation, to quote as it is; legal_force (binding: "
-        "laws and regulations; sharia: DSN-MUI fatwas; explanatory; none: reports, releases, statistics and "
+        "any ref another tool returned, to quote it or to check what it says. A whole regulation (no #address) comes "
+        "with its outline: its units in order, under their chapter and part headings, each readable by address. For "
+        "a passage, window gives that many passages either side. Returns one piece of evidence: its citation, the "
+        "source's name as a reader should see it; legal_force (binding: laws and regulations; sharia: DSN-MUI "
+        "fatwas; explanatory; none: reports, releases, statistics and "
         "companies, which report or count and never require); qualifiers (status, validity, provisional, as_of); and "
         "its body: text, figures or a record. A record's refs to other evidence come with their citations."
     ),
@@ -175,13 +178,23 @@ def _search(kinds: list[str]) -> ToolSpec:
             f"Searches the passages of {_plural(kinds)} for what speaks to a question, in Indonesian or English. Use "
             "it to find what an issuer wrote about a topic, then read a hit for its context. Filters are explicit "
             "and never relaxed for you: kinds, issuers, documents (search within these whole documents, e.g. those "
-            "industry_context named), published_from and published_to, in_force_on, legal_force. Returns hits, best "
-            "first, each with its rank, a score comparable only within one call, and matched_by. An empty page says "
-            "why: no_match (rephrase) or filters_exclude_all (widen the filters)."
+            "industry_context named), published_from and published_to, in_force_on, legal_force (binding and sharia "
+            "for the law alone; none for what regulators reported). Returns hits, best "
+            "first, each with its rank, a score comparable only within one call, matched_by, and, when the gateway "
+            "judged it, a strength: strong, or weak (probably not about the question). An empty page says why: "
+            "no_match (nothing relevant: rephrase, or the sources hold nothing on it) or filters_exclude_all (widen "
+            "the filters)."
         ),
-        input_schema=shape_schema("search_request"),
+        input_schema=_search_schema(kinds),
         output_schema=shape_schema("hit_page"),
     )
+
+
+def _search_schema(kinds: list[str]) -> JSON:
+    """The search request, its kinds limited to those a provider searches."""
+    request = copy.deepcopy(load_schema()["$defs"]["search_request"])
+    request["properties"]["kinds"]["items"] = {"enum": kinds}
+    return _schema(request["properties"], request["required"])
 
 
 def _plural(kinds: list[str]) -> str:

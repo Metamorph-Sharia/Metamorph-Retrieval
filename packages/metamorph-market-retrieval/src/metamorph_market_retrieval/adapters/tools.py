@@ -48,7 +48,8 @@ FIND_COMPANIES = ToolSpec(
         "companies come ranked by how well one of their names matches. With as_of, the register's edition current "
         "that day decides who was listed and their standing. Each company is evidence: its citation is the register's "
         "edition, qualifiers.status is licensed, registered or left, with its licences; with announcements, the "
-        "release passages that name it, as refs to read. A listing is what a regulator lists, never a requirement: "
+        "release passages that name it, as refs to read. Each page gives total: how many companies the filters hold "
+        "all pages together, so counting never needs paging. A listing is what a regulator lists, never a requirement: "
         "for what a licence requires, search the regulations."
     ),
     input_schema={
@@ -105,7 +106,7 @@ FIND_SERIES = ToolSpec(
         "required": ["query"],
         "properties": {
             "query": {"type": "string", "minLength": 1},
-            "source": {"type": "string", "description": "ojk:portal, bi:seki or bps:table"},
+            "source": {"enum": ["ojk:portal", "bi:seki", "bps:table"]},
             "frequency": {"enum": list(FREQUENCIES)},
             "limit": LIMIT,
             "cursor": CURSOR,

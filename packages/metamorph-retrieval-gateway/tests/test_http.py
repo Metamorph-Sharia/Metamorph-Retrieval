@@ -42,7 +42,7 @@ def test_a_tool_is_called_by_posting_its_arguments() -> None:
         ("/tools/read", {"ref": "doc:ojk:pojk:1999:1"}, 404, "unknown_ref"),
         ("/tools/get_provision", {}, 404, "unknown_tool"),
         ("/tools/read", {"window": 1}, 400, "invalid_argument"),
-        ("/tools/search_documents", {"query": "x", "kinds": ["fatwa"]}, 501, "capability_missing"),
+        ("/tools/search_documents", {"query": "x", "kinds": ["fatwa"]}, 400, "invalid_argument"),  # none holds it
     ],
 )
 def test_an_error_carries_the_contracts_code_and_an_http_status(path: str, body: dict, status: int,
@@ -50,6 +50,12 @@ def test_an_error_carries_the_contracts_code_and_an_http_status(path: str, body:
     response = client().post(path, json=body)
 
     assert (response.status_code, response.json()["error"]) == (status, code)
+
+
+def test_a_search_no_provider_offers_is_a_501() -> None:
+    response = client(Regulations()).post("/tools/search_documents", json={"query": "x"})
+
+    assert (response.status_code, response.json()["error"]) == (501, "capability_missing")
 
 
 def test_a_provider_that_is_late_is_a_503() -> None:

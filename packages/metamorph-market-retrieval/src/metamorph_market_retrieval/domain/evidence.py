@@ -118,14 +118,19 @@ def series_evidence(series: Series, figures: Sequence[ObservationRow] | None = N
     dataset = series.dataset
     body: Body
     if figures is None:
-        body = Record({
-            "dataset": _named("dataset", dataset.id),
+        fields: dict[str, Any] = {"dataset": _named("dataset", dataset.id)}
+        if dataset.industry:
+            fields["industry"] = dataset.industry  # whose figures these are: a conventional table counts only its own
+        if dataset_name := _dataset_name(dataset):
+            fields["dataset_name"] = dataset_name  # "Rincian Aset: Total Aset", so a label says what it counts
+        fields |= {
             "unit": series.unit,
             "frequency": series.frequency,
             "first_period": period_label(series.first_period, series.frequency),
             "last_period": period_label(series.last_period, series.frequency),
             "observations": series.observations,
-        })
+        }
+        body = Record(fields)
     else:
         body = Figures(series.unit, series.frequency, tuple(
             Observation(period_label(row.period, series.frequency), row.value, row.provisional) for row in figures
@@ -218,3 +223,8 @@ def _docs(regulation_ids: Iterable[str]) -> list[dict[str, str]]:
 
 def _day(value: date | None) -> str | None:
     return value.isoformat() if value else None
+
+
+def _dataset_name(dataset: Dataset) -> str:
+    """A table as its source heads it: "Rincian Aset: Total Aset"; empty when it heads it with neither."""
+    return ": ".join(part for part in (dataset.group, dataset.metric) if part)

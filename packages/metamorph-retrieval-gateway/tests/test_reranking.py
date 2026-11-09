@@ -10,12 +10,12 @@ from memory_provider import MemoryProvider
 from retrieval_samples import regulation, release_passage, report_passage
 
 from metamorph_retrieval_contract.errors import InvalidArgument
-from metamorph_retrieval_contract.evidence import Record
+from metamorph_retrieval_contract.evidence import EmptyReason, Record, Strength
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import SearchRequest
 from metamorph_retrieval_gateway.application.catalog import Catalog
 from metamorph_retrieval_gateway.application.gateway import Gateway
-from metamorph_retrieval_gateway.application.reranking import NOT_RERANKED, rerank_text
+from metamorph_retrieval_gateway.application.reranking import FLOOR, NOT_RERANKED, NOTHING_RELEVANT, WEAK, rerank_text
 
 QUESTION = "pembiayaan syariah izin usaha"
 
@@ -38,6 +38,16 @@ class ByLength:
         if self.fails:
             raise self.fails
         return [float(len(text)) for text in texts]
+
+
+class Fixed:
+    """Gives the candidates these scores, in the order they come."""
+
+    def __init__(self, *scores: float) -> None:
+        self.given = scores
+
+    def scores(self, query: str, texts: list[str]) -> list[float]:
+        return list(self.given[: len(texts)])
 
 
 def refs(page) -> list[str]:  # noqa: ANN001 - a page of hits
@@ -115,3 +125,35 @@ def test_a_call_records_how_long_each_provider_and_the_reranker_took() -> None:
     stages = {stage.name: stage for stage in log.calls[0].stages}
     assert {provider.manifest().name for provider in providers} <= set(stages)
     assert stages["rerank"].duration_ms >= 10
+
+
+def test_a_candidate_under_the_floor_is_left_out_and_the_rest_carry_a_strength() -> None:
+    gateway = Gateway([SearchingRegulations(regulations(3))], reranker=Fixed(WEAK + 3, WEAK - 1, FLOOR - 1))
+    page = gateway.search(SearchRequest("pendanaan"))
+
+    assert [hit.strength for hit in page.items] == [Strength.STRONG, Strength.WEAK]
+    assert [hit.rank for hit in page.items] == [1, 2] and page.cursor is None
+
+
+def test_a_search_where_nothing_reaches_the_floor_finds_no_match_and_says_why() -> None:
+    page = Gateway([SearchingRegulations(regulations(3))], reranker=Fixed(FLOOR - 1, FLOOR - 2, FLOOR - 3)).search(
+        SearchRequest("zzqxv"))
+
+    assert page.items == () and page.empty_reason is EmptyReason.NO_MATCH
+    assert page.warnings == (NOTHING_RELEVANT,)
+
+
+def test_the_cursor_pages_through_what_the_floor_left() -> None:
+    gateway = Gateway([SearchingRegulations(regulations(5))], reranker=Fixed(5.0, 4.0, 3.0, FLOOR - 1, FLOOR - 2))
+    first = gateway.search(SearchRequest("pendanaan", limit=2))
+    second = gateway.search(SearchRequest("pendanaan", limit=2, cursor=first.cursor))
+
+    assert first.cursor == "fused:2" and [hit.rank for hit in second.items] == [3] and second.cursor is None
+
+
+def test_without_a_reranker_or_when_it_fails_no_hit_is_judged() -> None:
+    plain = Gateway([MemoryProvider(), SearchingRegulations()]).search(SearchRequest(QUESTION))
+    failed = Gateway([MemoryProvider(), SearchingRegulations()], reranker=ByLength(fails=RuntimeError("boom"))).search(
+        SearchRequest(QUESTION))
+
+    assert plain.items and {hit.strength for hit in (*plain.items, *failed.items)} == {None}

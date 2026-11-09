@@ -8,7 +8,7 @@ from test_provider import market_manifest
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.codec import ContractViolation
 from metamorph_retrieval_contract.errors import ERRORS, UnknownRef
-from metamorph_retrieval_contract.evidence import EmptyReason, Evidence, Hit, LegalForce, MatchedBy, Page
+from metamorph_retrieval_contract.evidence import EmptyReason, Evidence, Hit, LegalForce, MatchedBy, Page, Strength
 from metamorph_retrieval_contract.links import Direction, Link, LinkType
 from metamorph_retrieval_contract.refs import Ref
 from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest, Sort
@@ -43,6 +43,24 @@ def test_a_page_of_hits_reads_back_as_written() -> None:
     )
 
     assert codec.hits_from_dict(through_json(codec.to_dict(page))) == page
+
+
+def test_a_hits_strength_reads_back_as_written() -> None:
+    page = Page(items=(
+        Hit(report_passage(), rank=1, score=0.9, matched_by=frozenset({MatchedBy.WORDS}), strength=Strength.STRONG),
+        Hit(release_passage(), rank=2, score=0.4, matched_by=frozenset({MatchedBy.WORDS}), strength=Strength.WEAK),
+    ))
+
+    assert codec.hits_from_dict(through_json(codec.to_dict(page))) == page
+
+
+def test_a_hit_nothing_judged_carries_no_strength() -> None:
+    hit = Hit(report_passage(), rank=1, score=0.9, matched_by=frozenset({MatchedBy.WORDS}))
+    written = codec.to_dict(hit)
+
+    assert "strength" not in written
+    assert codec.hits_from_dict({"items": [written], "cursor": None, "empty_reason": None,
+                                 "warnings": []}).items[0].strength is None
 
 
 def test_an_empty_page_reads_back_with_its_reason() -> None:
@@ -142,3 +160,11 @@ def test_a_page_of_evidence_reads_back_as_written() -> None:
     assert codec.evidence_page_from_dict(through_json(codec.to_dict(Page.empty(EmptyReason.NO_MATCH)))) == Page.empty(
         EmptyReason.NO_MATCH
     )
+
+
+def test_a_pages_total_reads_back_and_is_left_out_when_not_counted() -> None:
+    counted = Page(items=(report_passage(),), cursor="8", total=87)
+
+    assert codec.evidence_page_from_dict(through_json(codec.to_dict(counted))) == counted
+    assert "total" not in codec.to_dict(Page(items=(report_passage(),)))
+

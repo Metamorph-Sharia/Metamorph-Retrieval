@@ -68,6 +68,22 @@ def evidence(passage: Passage, *, provider: str, index_version: str):
 
 
 def document_evidence(document: dict[str, Any], *, provider: str, index_version: str):
+    fields = {
+        "issuer": document.get("issuer"),
+        "family": document.get("family"),
+        "number": document.get("number"),
+        "year": document.get("year"),
+        "effective_on": _date(document.get("effective_on")),
+        "aliases": list(document.get("aliases") or ()),
+        "status_history": list(document.get("status_history") or ()),
+    }
+    outline = document.get("outline")
+    if outline:
+        fields["outline"] = outline
+        fields["outline_reading"] = (
+            "Read a unit as this document's ref with #address, e.g. "
+            f"{make_ref(document['document_id'], outline[0]['units'][0])}."
+        )
     return {
         "ref": make_ref(document["document_id"]),
         "kind": document.get("kind") or "regulation",
@@ -88,15 +104,7 @@ def document_evidence(document: dict[str, Any], *, provider: str, index_version:
         "url": None,
         "body": {
             "type": "record",
-            "fields": {
-                "issuer": document.get("issuer"),
-                "family": document.get("family"),
-                "number": document.get("number"),
-                "year": document.get("year"),
-                "effective_on": _date(document.get("effective_on")),
-                "aliases": list(document.get("aliases") or ()),
-                "status_history": list(document.get("status_history") or ()),
-            },
+            "fields": fields,
         },
         "provenance": {
             "provider": provider,

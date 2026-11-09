@@ -104,10 +104,11 @@ where c.document_id = %s and c.address = %s
 limit 1
 """
 
-# to_jsonb, since an index built before status histories has no such column
+# to_jsonb, since an index built before status histories or outlines has no such column
 DOCUMENT = """
 select document_id, kind, citation, title, issuer, status, family, number, year,
-       promulgated_on, effective_on, published_at, aliases, to_jsonb(m) -> 'status_history'
+       promulgated_on, effective_on, published_at, aliases, to_jsonb(m) -> 'status_history',
+       to_jsonb(m) -> 'outline'
 from {meta} m
 where document_id = %s
 """
@@ -115,6 +116,7 @@ where document_id = %s
 DOCUMENT_COLUMNS = (
     "document_id", "kind", "citation", "title", "issuer", "status", "family", "number",
     "year", "promulgated_on", "effective_on", "published_at", "aliases", "status_history",
+    "outline",
 )
 
 # A document's links cross to other documents: those inside it are its provisions'. A provision's are those on it or on
@@ -262,6 +264,11 @@ class PostgresStore:
                 DOCUMENT.format(meta=self.meta_table), (document_id,)
             ).fetchone()
         return dict(zip(DOCUMENT_COLUMNS, row, strict=True)) if row else None
+
+    def kinds(self) -> frozenset[str]:
+        """The kinds of document the index holds, which are what its search can be narrowed to."""
+        with self._connect() as conn:
+            return frozenset(row[0] for row in conn.execute(f"select distinct kind from {self.meta_table}"))
 
     def published_at(self):
         with self._connect() as conn:

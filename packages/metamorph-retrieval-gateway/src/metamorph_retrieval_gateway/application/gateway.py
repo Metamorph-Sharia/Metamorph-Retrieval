@@ -41,7 +41,15 @@ from metamorph_retrieval_contract.requests import MAX_LIMIT, LinksRequest, Searc
 from metamorph_retrieval_gateway.application.calls import timed
 from metamorph_retrieval_gateway.application.enrichment import MAX_NAMED, card_fields, cited, named, past_budget
 from metamorph_retrieval_gateway.application.fusion import fuse, fused_page, merged_page, offset_of, ranked_page
-from metamorph_retrieval_gateway.application.reranking import CANDIDATES, NOT_RERANKED, RERANK, Reranker, rerank_text
+from metamorph_retrieval_gateway.application.reranking import (
+    CANDIDATES,
+    NOT_RERANKED,
+    NOTHING_RELEVANT,
+    RERANK,
+    Reranker,
+    judged,
+    rerank_text,
+)
 from metamorph_retrieval_gateway.application.reranking import TIMEOUT as RERANK_TIMEOUT
 
 T = TypeVar("T")
@@ -122,6 +130,10 @@ class Gateway:
                                 strict=True), key=lambda pair: -pair[1])
         except Exception:  # noqa: BLE001 - late or failed, the fused order stands
             ranked, warnings = fused, (*warnings, NOT_RERANKED)
+        else:
+            ranked = judged(ranked)
+            if hits and not ranked:
+                why_empty, warnings = EmptyReason.NO_MATCH, (*warnings, NOTHING_RELEVANT)
         return ranked_page(ranked, start=start, limit=request.limit, warnings=warnings, why_empty=why_empty)
 
     def _candidates(self, name: str, request: SearchRequest) -> Page[Hit]:
