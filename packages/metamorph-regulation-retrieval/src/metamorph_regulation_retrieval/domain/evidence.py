@@ -49,7 +49,7 @@ def evidence(passage: Passage, *, provider: str, index_version: str):
         "title": passage.title,
         "legal_force": legal_force_of(passage.doc_kind),
         "qualifiers": {
-            "status": passage.doc_status,
+            "status": passage.status,
             "valid_from": _date(passage.valid_from or passage.effective_on),
             "valid_to": _date(passage.valid_to),
             "under_review": False,

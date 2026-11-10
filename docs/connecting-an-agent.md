@@ -85,7 +85,7 @@ A page may also carry `total`: how many items the filters hold across all pages.
 
 ### The reranker
 
-When the gateway runs one, it reads the question with each fused candidate and orders them all on one scale, which holds across providers. The floor and the weak line are constants measured for the reranker it runs, the cross-encoder `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (`FLOOR` and `WEAK` in `application/reranking.py`). Another reranker scores on another scale, so set both again on the eval. A reranker that misses its 5 s budget leaves the fused order standing, with a warning.
+When the gateway runs one, it reads the question with each fused candidate and orders them all on one scale, which holds across providers. The floor and the weak line are constants measured for the reranker it runs, the cross-encoder `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (`FLOOR` and `WEAK` in `application/reranking.py`). Another reranker scores on another scale, so set both again on the eval. A reranker that misses its 10 s budget leaves the fused order standing, with a warning.
 
 ## Errors
 

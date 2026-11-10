@@ -85,6 +85,13 @@ where d.id <> all(%s)
 order by d.id
 """
 
+# Each address-level status event, for a provision's own status (domain.status). A null address is the whole document's.
+EVENTS = """
+select document_id, address, status, effective_from
+from published.status_event
+where address is not null
+"""
+
 # A document's outline: its headings and the provisions directly under it. The build groups them (domain.outline).
 OUTLINE = """
 select p.document_id, p.address, p.kind, p.parent_address, p.ordinal, p.depth, p.heading_path, p.heading
@@ -133,6 +140,7 @@ create table {table} (
   citation text not null,
   issuer text not null,
   doc_status text not null,
+  status text,  -- the provision's own, from its document's address-level events (domain.status)
   valid_from date,
   valid_to date,
   body text not null,
@@ -203,6 +211,7 @@ class Chunk:
     citation: str
     issuer: str
     doc_status: str
+    status: str  # the provision's own; doc_status is its document's
     valid_from: object
     valid_to: object
     body: str
@@ -304,7 +313,7 @@ def context_of(provision: Provision, body: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def chunk(provision: Provision, snapshot: str) -> Chunk:
+def chunk(provision: Provision, snapshot: str, *, status: str | None = None) -> Chunk:
     body, had_page_markers = clean(provision.body)
     flags = significance_flags(body, provision.heading)
     if not provision.unit:
@@ -325,6 +334,7 @@ def chunk(provision: Provision, snapshot: str) -> Chunk:
         citation=provision.citation or provision.title,
         issuer=provision.issuer,
         doc_status=provision.status,
+        status=status or provision.status,
         valid_from=provision.valid_from,
         valid_to=provision.valid_to,
         body=body,

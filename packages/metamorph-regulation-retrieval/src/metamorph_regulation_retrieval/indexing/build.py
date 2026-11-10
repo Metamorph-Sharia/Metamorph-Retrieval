@@ -17,10 +17,12 @@ import psycopg
 
 from ..domain.links import ORDER
 from ..domain.outline import OutlineProvision, document_outline
+from ..domain.status import latest_events, provision_status
 from .chunks import (
     CHUNK_DDL,
     COMMON_SHARE,
     DOCUMENTS,
+    EVENTS,
     LINK_DDL,
     LINKS,
     META_DDL,
@@ -56,7 +58,7 @@ select (select count(*) from published.document),
 
 COPY = (
     "copy {table} (chunk_id, snapshot_id, document_id, text_sha256, source_address, address, "
-    "part, part_count, kind, label, heading, title, citation, issuer, doc_status, valid_from, "
+    "part, part_count, kind, label, heading, title, citation, issuer, doc_status, status, valid_from, "
     "valid_to, body, body_md5, body_chars, context_text, context_hash, token_count, "
     "searchable, flags) from stdin"
 )
@@ -95,6 +97,7 @@ def build(snapshot: str, tables: Tables, *, limit: int | None = None) -> int:
     excluded = excluded_documents()
     with psycopg.connect(published_url()) as source:
         rows = source.execute(PROVISIONS, (excluded,)).fetchall()
+        events = events_by_document(source.execute(EVENTS))
     provisions = [Provision(*row) for row in rows]
     if limit:
         provisions = provisions[:limit]
@@ -106,7 +109,9 @@ def build(snapshot: str, tables: Tables, *, limit: int | None = None) -> int:
             cursor.execute(CHUNK_DDL.format(table=table_name(tables.chunks)))
             with cursor.copy(COPY.format(table=tables.chunks)) as copy:
                 for provision in provisions:
-                    copy.write_row(chunk_row(chunk(provision, snapshot), snapshot))
+                    status = provision_status(provision.address, provision.status,
+                                              events.get(provision.document_id, {}))
+                    copy.write_row(chunk_row(chunk(provision, snapshot, status=status), snapshot))
             cursor.execute(
                 f"create index {tables.chunks}_document on {tables.chunks} (document_id, address)"
             )
@@ -134,6 +139,14 @@ def build_metadata(tables: Tables) -> int:
         target.commit()
     print(f"documents: {len(rows):,}", flush=True)
     return len(rows)
+
+
+def events_by_document(rows: Iterable[tuple[Any, ...]]) -> dict[str, dict[str, str]]:
+    """Each document's address-level events, as the latest status per address."""
+    by_document: dict[str, list[tuple[str, str, Any]]] = defaultdict(list)
+    for document_id, address, status, effective_from in rows:
+        by_document[document_id].append((address, status, effective_from))
+    return {document_id: latest_events(events) for document_id, events in by_document.items()}
 
 
 def outlines(provisions: Iterable[tuple[Any, ...]]) -> dict[str, list[dict[str, Any]]]:
@@ -272,6 +285,7 @@ def chunk_row(value: Chunk, snapshot: str) -> tuple:
         value.citation,
         value.issuer,
         value.doc_status,
+        value.status,
         value.valid_from,
         value.valid_to,
         value.body,

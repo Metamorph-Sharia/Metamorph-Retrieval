@@ -38,7 +38,12 @@ class Outcome:
 
 
 def matches(expected: Ref, returned: Ref) -> bool:
-    return returned == expected or (expected.address is None and returned.whole() == expected)
+    """The ref itself, any passage of an expected whole document, or a part of an expected provision: a long unit's
+    items are units too, so a search may return the part that answers."""
+    if returned == expected or (expected.address is None and returned.whole() == expected):
+        return True
+    return (expected.address is not None and returned.whole() == expected.whole() and returned.address is not None
+            and returned.address.startswith(expected.address + "/"))
 
 
 def judge(case: Case, result: Result) -> Outcome:

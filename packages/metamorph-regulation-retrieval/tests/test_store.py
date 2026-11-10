@@ -298,3 +298,17 @@ def test_a_documents_status_history_is_read_with_its_card(store: PostgresStore) 
 
 def test_an_index_without_a_status_history_still_gives_the_card(store: PostgresStore) -> None:
     assert store.document("dsnmui:fatwa:117")["status_history"] is None
+
+
+def test_a_provision_reads_its_own_status_where_the_index_holds_one(store: PostgresStore) -> None:
+    with psycopg.connect(store.url) as connection:
+        connection.execute(f"CREATE TABLE IF NOT EXISTS regulation_chunk_own AS SELECT * FROM {TABLES['chunk_table']}")
+        connection.execute("UPDATE regulation_chunk_own SET status = 'amended' WHERE address = 'pasal-137/ayat-3'")
+        connection.execute(f"CREATE TABLE IF NOT EXISTS regulation_chunk_bare AS SELECT * FROM {TABLES['chunk_table']}")
+        connection.execute("ALTER TABLE regulation_chunk_bare DROP COLUMN IF EXISTS status")
+    own = PostgresStore(store.url, dimension=DIMENSION, **(TABLES | {"chunk_table": "regulation_chunk_own"}))
+    bare = PostgresStore(store.url, dimension=DIMENSION, **(TABLES | {"chunk_table": "regulation_chunk_bare"}))
+
+    assert own.read("ojk:pojk:2024:40", "pasal-137/ayat-3").status == "amended"
+    assert own.read("ojk:pojk:2024:40", "pasal-137/ayat-4").status == "in_force"  # none of its own: its document's
+    assert bare.read("ojk:pojk:2024:40", "pasal-137/ayat-3").status == "in_force"  # an index built before

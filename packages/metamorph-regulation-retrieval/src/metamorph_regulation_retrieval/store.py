@@ -175,7 +175,7 @@ class PostgresStore:
                 conn.execute("set local hnsw.iterative_scan = relaxed_order")
             rows = conn.execute(
                 SEARCH.format(
-                    columns=COLUMNS, bare=BARE, embed=self.embed_table, chunk=self.chunk_table,
+                    columns=self._passage_columns(), bare=BARE, embed=self.embed_table, chunk=self.chunk_table,
                     meta=self.meta_table, dim=self.dimension, where=where,
                 ),
                 {"vector": list(vector), "depth": depth, "limit": limit, **parameters},
@@ -187,7 +187,7 @@ class PostgresStore:
         where, parameters = self._where(filters)
         with self._connect() as conn:
             rows = conn.execute(
-                WORDS.format(columns=COLUMNS, chunk=self.chunk_table, meta=self.meta_table, where=where,
+                WORDS.format(columns=self._passage_columns(), chunk=self.chunk_table, meta=self.meta_table, where=where,
                              language=LANGUAGE, stems=stems_table(self.chunk_table)),
                 {"query": query, "limit": limit, "share": WORDS_SHARE, **parameters},
             ).fetchall()
@@ -216,6 +216,12 @@ class PostgresStore:
     def dates_revocations(self) -> bool:
         """Whether the index knows when each revoked document was revoked (indexes built since 2026-11-03)."""
         return self._has_column(self.meta_table, "revoked_on")
+
+    def _passage_columns(self) -> str:
+        """A passage's columns: its provision's own status where the index holds one (built since 2026-11-10)."""
+        if self._has_column(self.chunk_table, "status"):
+            return COLUMNS.replace("m.status,", "coalesce(c.status, m.status) as status,")
+        return COLUMNS
 
     def _has_column(self, table: str, column: str) -> bool:
         if (table, column) not in self._columns:
@@ -253,7 +259,7 @@ class PostgresStore:
     def read(self, document_id: str, address: str) -> Passage | None:
         with self._connect() as conn:
             row = conn.execute(
-                READ.format(columns=COLUMNS, chunk=self.chunk_table, meta=self.meta_table),
+                READ.format(columns=self._passage_columns(), chunk=self.chunk_table, meta=self.meta_table),
                 (document_id, address),
             ).fetchone()
         return _passage(row) if row else None
@@ -301,7 +307,7 @@ def _passage(row: Sequence[Any]) -> Passage:
         citation=row[4],
         text=row[5],
         doc_kind=row[6],
-        doc_status=row[7],
+        status=row[7],
         valid_from=row[8],
         valid_to=row[9],
         effective_on=row[10],

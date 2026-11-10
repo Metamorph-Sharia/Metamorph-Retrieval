@@ -14,7 +14,7 @@ class Passage:
     citation: str
     text: str
     doc_kind: str | None = None
-    doc_status: str | None = None
+    status: str | None = None  # the provision's own; its document's on an index built before 2026-11-10
     valid_from: object = None
     valid_to: object = None
     effective_on: object = None

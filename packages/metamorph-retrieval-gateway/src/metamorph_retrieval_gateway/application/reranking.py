@@ -14,7 +14,7 @@ from typing import Any, Protocol
 from metamorph_retrieval_contract.evidence import Evidence, Hit, Record, Strength, Text
 
 CANDIDATES = 50  # fused candidates reranked: enough to lift one from far down, few enough to be fast
-TIMEOUT = 5.0  # seconds the reranker has; past them, the fused order stands
+TIMEOUT = 10.0  # seconds the reranker has, past which the fused order stands: 50 candidates on 2 vCPUs need more than 5
 NOT_RERANKED = "results in fused order: the reranker didn't answer in time"
 RERANK = "rerank"  # its stage in a call
 

@@ -118,3 +118,13 @@ def test_an_exact_tools_outcome_is_measured_like_a_search() -> None:
     outcome = judge(replace(case(expect), tool="find_companies"), Result(refs=(P44, P43)))
 
     assert (outcome.recall, outcome.reciprocal_rank) == (1.0, 1.0)
+
+
+def test_a_part_of_an_expected_provision_matches_it_but_not_a_neighbour_or_the_whole() -> None:
+    expected = Ref.parse("doc:ojk:seojk:2025:19#romawi-xiv")
+
+    assert matches(expected, Ref.parse("doc:ojk:seojk:2025:19#romawi-xiv/angka-4"))
+    assert not matches(expected, Ref.parse("doc:ojk:seojk:2025:19#romawi-xiv-a"))
+    assert not matches(expected, Ref.parse("doc:ojk:seojk:2025:19#romawi-xv/angka-4"))
+    assert not matches(expected, Ref.parse("doc:ojk:seojk:2023:19#romawi-xiv/angka-4"))
+    assert not matches(Ref.parse("doc:ojk:seojk:2025:19#romawi-xiv/angka-4"), expected)
