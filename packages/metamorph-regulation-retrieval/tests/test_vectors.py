@@ -16,7 +16,13 @@ import pytest
 from psycopg import sql
 
 from metamorph_regulation_retrieval.indexing.chunks import CHUNK_DDL
-from metamorph_regulation_retrieval.indexing.embed import EMBED_DDL, embed, export_vectors, import_vectors
+from metamorph_regulation_retrieval.indexing.embed import (
+    EMBED_DDL,
+    embed,
+    export_vectors,
+    import_vectors,
+    seed_vectors,
+)
 
 pytestmark = pytest.mark.database
 
@@ -81,3 +87,20 @@ def test_vectors_move_by_chunk(connection: psycopg.Connection) -> None:
     assert embed(connection, "chunk_new", "emb_new", model) == 1
     assert model.embedded == ["new"]  # only what the seed didn't cover
     assert vectors(connection, "emb_new") == {"a": "[1,0,0]", "new": "[0,0,1]"}
+
+
+def test_a_build_takes_the_live_builds_vectors_where_it_can(connection: psycopg.Connection) -> None:
+    chunks(connection, "chunk_live", [("a", True), ("b", True), ("gone", True)])
+    connection.execute(EMBED_DDL.format(table="emb_live", dim=DIMENSION))
+    for chunk_id, vector in [("a", "[1,0,0]"), ("b", "[0,1,0]"), ("gone", "[1,1,0]")]:
+        connection.execute("INSERT INTO emb_live VALUES (%s, %s::vector)", (chunk_id, vector))
+
+    chunks(connection, "chunk_build", [("a", True), ("b", False), ("new", True)])  # b no longer searched; new is new
+    connection.execute(EMBED_DDL.format(table="emb_build", dim=DIMENSION))
+    assert seed_vectors(connection, "chunk_build", "emb_build", "emb_live") == 1
+    assert vectors(connection, "emb_build") == {"a": "[1,0,0]"}
+    assert seed_vectors(connection, "chunk_build", "emb_build", "emb_live") == 0  # a is there already
+
+    model = Model()
+    assert embed(connection, "chunk_build", "emb_build", model) == 1
+    assert model.embedded == ["new"]

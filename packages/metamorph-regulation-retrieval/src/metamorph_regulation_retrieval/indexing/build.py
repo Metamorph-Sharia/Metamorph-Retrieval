@@ -34,6 +34,7 @@ from .chunks import (
     chunk,
 )
 from .config import excluded_documents, index_url, published_url, table_name, tag
+from .embed import DEFAULT_MODEL
 
 BUILD_DDL = """
 create table if not exists regulation_build (
@@ -45,9 +46,23 @@ create table if not exists regulation_build (
   searchable_count integer not null,
   vector_count integer not null,
   status text not null,
+  model text,
   source_fingerprint text,
   built_at timestamptz not null default now()
 )
+"""
+
+# The model came after the first builds: `record` adds the column, and reading goes through to_jsonb, so an older
+# table is read as it is. A build recorded without a model is bge_m3's, the only model used before.
+MODEL_COLUMN = "alter table regulation_build add column if not exists model text"
+
+LIVE_VECTORS = """
+select embed_table, coalesce(to_jsonb(b) ->> 'model', %s) from regulation_build b
+where status = 'live' order by built_at desc limit 1
+"""
+
+SNAPSHOT_MODEL = """
+select coalesce(to_jsonb(b) ->> 'model', %s) from regulation_build b where snapshot_id = %s
 """
 
 SOURCE = """
@@ -203,10 +218,11 @@ def validate(tables: Tables, *, require_vectors: bool) -> list[str]:
     return problems
 
 
-def record(snapshot: str, tables: Tables, status: str) -> None:
+def record(snapshot: str, tables: Tables, status: str, model: str) -> None:
     with psycopg.connect(index_url()) as conn:
         conn.execute(BUILD_DDL)
         conn.execute("alter table regulation_build add column if not exists source_fingerprint text")
+        conn.execute(MODEL_COLUMN)
         chunks, searchable = conn.execute(
             f"select count(*), count(*) filter (where searchable) from {tables.chunks}"
         ).fetchone()
@@ -217,19 +233,38 @@ def record(snapshot: str, tables: Tables, status: str) -> None:
             """
             insert into regulation_build (snapshot_id, chunk_table, embed_table, meta_table,
                                           chunk_count, searchable_count, vector_count, status,
-                                          source_fingerprint)
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                          model, source_fingerprint)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             on conflict (snapshot_id) do update set
               chunk_table = excluded.chunk_table, embed_table = excluded.embed_table,
               meta_table = excluded.meta_table, chunk_count = excluded.chunk_count,
               searchable_count = excluded.searchable_count, vector_count = excluded.vector_count,
-              status = excluded.status, source_fingerprint = excluded.source_fingerprint,
+              status = excluded.status, model = excluded.model,
+              source_fingerprint = excluded.source_fingerprint,
               built_at = now()
             """,
             (snapshot, tables.chunks, tables.embeddings, tables.meta, chunks, searchable, vectors,
-             status, source_fingerprint()),
+             status, model, source_fingerprint()),
         )
         conn.commit()
+
+
+def live_vectors(live: Tables) -> tuple[str, str] | None:
+    """The live build's embedding table and the model that made its vectors, while both are there."""
+    with psycopg.connect(index_url()) as conn:
+        if not exists(conn, "regulation_build"):
+            return None
+        row = conn.execute(LIVE_VECTORS, (DEFAULT_MODEL,)).fetchone()
+        return (row[0], row[1]) if row and exists(conn, row[0]) else None
+
+
+def snapshot_model(snapshot: str) -> str:
+    """The model a snapshot was built with: what `activate` records of it."""
+    with psycopg.connect(index_url()) as conn:
+        if not exists(conn, "regulation_build"):
+            return DEFAULT_MODEL
+        row = conn.execute(SNAPSHOT_MODEL, (DEFAULT_MODEL, snapshot)).fetchone()
+        return row[0] if row else DEFAULT_MODEL
 
 
 def activate(tables: Tables, live: Tables, *, allow_shrink: bool = False) -> None:

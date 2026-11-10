@@ -1,14 +1,15 @@
-"""`metamorph-regulation-index`: build the regulation index, judge it, activate it.
+"""`metamorph-regulation-index`: build the regulation index, point an evaluation at a build, activate it.
 
     metamorph-regulation-index build --snapshot 2026-11-03
+    metamorph-regulation-index build --snapshot 2026-11-03        taken from the live build, where it is the same model
     metamorph-regulation-index build --snapshot 2026-11-03 --vectors https://…   seeded with another build's vectors
     metamorph-regulation-index export-vectors --snapshot 2026-11-03 --to vectors.copy.gz
-    metamorph-regulation-index judge --cases cases.jsonl --snapshot 2026-11-03
+    metamorph-regulation-index tables --snapshot 2026-11-03   the settings that point the provider at a build
     metamorph-regulation-index activate --snapshot 2026-11-03
     metamorph-regulation-index versions
 
-Exit codes: 0 ok, 3 judged worse than the active snapshot (kept inactive),
-anything else a failure. `scripts/refresh-regulation-index.sh` chains the three.
+Exit codes: 0 ok, anything else a failure. `scripts/refresh-regulation-index.sh` builds, judges the build against the
+live one with metamorph-eval (as the market's refresh does) and activates it only if it is no worse.
 """
 
 from __future__ import annotations
@@ -16,17 +17,26 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 
 import psycopg
 
+from ..adapters.provider import INDEX_VERSION
+from ..store import CHUNK_TABLE, EMBED_TABLE, META_TABLE
 from . import build as builder
 from .build import Tables
 from .config import index_url, snapshot_id, table_name
-from .embed import MODELS, create_table, embed, export_vectors, import_vectors, index_vectors, load_model, open_vectors
-from .judge import load_cases, measure, worse_than
+from .embed import (
+    MODELS,
+    create_table,
+    embed,
+    export_vectors,
+    import_vectors,
+    index_vectors,
+    load_model,
+    open_vectors,
+    seed_vectors,
+)
 
-WORSE = 3
 LIVE = Tables("regulation_chunk_live", "regulation_emb_live", "regulation_meta_live")
 
 
@@ -48,14 +58,8 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--chunk-table", default="", help="instead of the snapshot's")
     export.add_argument("--embed-table", default="", help="instead of the snapshot's")
 
-    judge = commands.add_parser("judge", help="compare a snapshot with the active one")
-    judge.add_argument("--cases", required=True)
-    judge.add_argument("--snapshot", default=snapshot_id())
-    judge.add_argument("--baseline-chunk", default=LIVE.chunks)
-    judge.add_argument("--baseline-embed", default=LIVE.embeddings)
-    judge.add_argument("--model", default="bge_m3", choices=sorted(MODELS))
-    judge.add_argument("--tolerance", type=float, default=0.02)
-    judge.add_argument("--json", default="")
+    tables = commands.add_parser("tables", help="print the settings that point the provider at a snapshot's tables")
+    tables.add_argument("--snapshot", required=True)
 
     activate = commands.add_parser("activate", help="swap a snapshot over the live names")
     activate.add_argument("--snapshot", default=snapshot_id())
@@ -74,8 +78,8 @@ def main(argv: list[str] | None = None) -> int:
         return _build(args)
     if args.command == "export-vectors":
         return _export_vectors(args)
-    if args.command == "judge":
-        return _judge(args)
+    if args.command == "tables":
+        return _tables(args)
     if args.command == "activate":
         return _activate(args)
     if args.command == "versions":
@@ -100,6 +104,7 @@ def _build(args: argparse.Namespace) -> int:
         with psycopg.connect(index_url()) as conn:
             create_table(conn, table_name(tables.embeddings), MODELS[args.model]["dim"])
             conn.commit()
+            reuse_live_vectors(conn, tables, args.model)
             if args.vectors:
                 with open_vectors(args.vectors) as source:
                     taken = import_vectors(conn, tables.chunks, tables.embeddings, source, MODELS[args.model]["dim"])
@@ -112,9 +117,22 @@ def _build(args: argparse.Namespace) -> int:
         for problem in problems:
             print(f"build: {problem}", file=sys.stderr)
         return 1
-    builder.record(args.snapshot, tables, "ready")
+    builder.record(args.snapshot, tables, "ready", args.model)
     print(json.dumps({"snapshot": args.snapshot, "chunks": count, "tables": tables.__dict__}))
     return 0
+
+
+def reuse_live_vectors(conn: psycopg.Connection, tables: Tables, model: str) -> None:
+    """Take the live build's vectors where they are this model's: only new or changed chunks are embedded."""
+    live = builder.live_vectors(LIVE)
+    if live is None:
+        return
+    source, live_model = live
+    if live_model != model:
+        print(f"the live build's vectors are {live_model}'s, not {model}'s: none taken", flush=True)
+        return
+    taken = seed_vectors(conn, tables.chunks, tables.embeddings, source)
+    print(f"vectors taken from the live build: {taken:,}", flush=True)
 
 
 def _export_vectors(args: argparse.Namespace) -> int:
@@ -127,33 +145,11 @@ def _export_vectors(args: argparse.Namespace) -> int:
     return 0
 
 
-def _judge(args: argparse.Namespace) -> int:
+def _tables(args: argparse.Namespace) -> int:
+    """Settings for the provider (wiring.py) to read this snapshot's tables, one NAME=value per line."""
     tables = Tables.for_snapshot(args.snapshot)
-    cases = load_cases(Path(args.cases))
-    model = load_model(args.model)
-    vectors = {case["question"]: model.encode(case["question"], normalize_embeddings=True) for case in cases}
-
-    new = measure(cases, tables.chunks, tables.embeddings, vectors)
-    active = measure(cases, args.baseline_chunk, args.baseline_embed, vectors)
-    worse = worse_than(new, active, args.tolerance)
-
-    print(f"{'metric':<16}{'active':>8}{'new':>8}{'delta':>9}")
-    print(f"{'document@5':<16}{active.documents_at_5:>8.3f}{new.documents_at_5:>8.3f}"
-          f"{new.documents_at_5 - active.documents_at_5:>+9.3f}")
-    print(f"{'clause in set':<16}{active.clause_in_set:>8.3f}{new.clause_in_set:>8.3f}"
-          f"{new.clause_in_set - active.clause_in_set:>+9.3f}")
-    print(f"tolerance {args.tolerance:.3f}; evidence {new.evidence}")
-    if args.json:
-        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.json).write_text(json.dumps({
-            "snapshot": args.snapshot,
-            "new": new.__dict__,
-            "active": active.__dict__,
-            "worse_on": worse,
-        }, indent=2))
-    if worse:
-        print(f"judge: worse on {', '.join(worse)}; keep the active index", file=sys.stderr)
-        return WORSE
+    print(f"{CHUNK_TABLE}={tables.chunks}\n{EMBED_TABLE}={tables.embeddings}\n{META_TABLE}={tables.meta}")
+    print(f"{INDEX_VERSION}=regulation-{args.snapshot}")
     return 0
 
 
@@ -165,7 +161,7 @@ def _activate(args: argparse.Namespace) -> int:
             print(f"activate: {problem}", file=sys.stderr)
         return 1
     builder.activate(tables, LIVE, allow_shrink=args.allow_shrink)
-    builder.record(args.snapshot, LIVE, "live")
+    builder.record(args.snapshot, LIVE, "live", builder.snapshot_model(args.snapshot))
     print(f"activated {args.snapshot}")
     return 0
 

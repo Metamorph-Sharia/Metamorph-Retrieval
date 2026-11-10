@@ -112,7 +112,8 @@ def embed(
 
 # Vectors between builds. A chunk's id names its document, its text's hash, its address and the hash of what the model
 # reads, so its vector is the same wherever the chunk is built: a build can take another's (one made where embedding is
-# fast) and embed only the chunks they don't cover. The file is gzipped COPY text: chunk id, tab, vector.
+# fast) and embed only the chunks they don't cover. A refresh takes them straight from the live build's table, by id
+# (seed_vectors), so it embeds only the new and changed chunks. The file is gzipped COPY text: chunk id, tab, vector.
 
 EXPORT = """
 copy (select e.chunk_id, e.embedding from {embed} e join {chunk} c using (chunk_id) where c.searchable
@@ -142,6 +143,19 @@ def import_vectors(conn: psycopg.Connection, chunk_table: str, embed_table: str,
                 copy.write(block)
         cursor.execute(
             f"insert into {embed_table} (chunk_id, embedding) select s.chunk_id, s.embedding from seed s "
+            f"join {chunk_table} c using (chunk_id) where c.searchable on conflict (chunk_id) do nothing"
+        )
+        taken = cursor.rowcount
+    conn.commit()
+    return taken
+
+
+def seed_vectors(conn: psycopg.Connection, chunk_table: str, embed_table: str, source_embed_table: str) -> int:
+    """Take, from another build's embedding table, the vectors of this build's searchable chunks; the number taken."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            f"insert into {embed_table} (chunk_id, embedding) "
+            f"select s.chunk_id, s.embedding from {source_embed_table} s "
             f"join {chunk_table} c using (chunk_id) where c.searchable on conflict (chunk_id) do nothing"
         )
         taken = cursor.rowcount
