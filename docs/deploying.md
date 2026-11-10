@@ -140,6 +140,32 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
    ```
    Then run the question sets through `https://d2ae8k1h45zs74.cloudfront.net` with the dev token, as `docs/connecting-an-agent.md` shows.
 
+## Deployed on 2026-11-10: smaller units, status by provision, outlines
+
+Platform migration 0023 was applied first on RDS: the items of a unit longer than 2,000 characters are units too. That gives 304,325 units, 43,002 of them items.
+
+| Gate on the new index, 50 candidates | Regulation set | Regulation corpus | Market set | Federated set | A search |
+|---|---|---|---|---|---|
+| Inside the VPC, on Graviton3 | 19 of 42, recall 0.49, MRR 0.38 | 55 of 64 | 52 of 54 | 24 of 27 | |
+| Through the public development address (**what runs**) | 20 of 42, recall 0.51, MRR 0.38 | 55 of 64 | 52 of 54 | 24 of 27 | p50 6.6 s, p95 10.3 s, 20 of 20 reranked; a `read` 163 ms |
+
+Before this change, AWS had 14 of 42, 52 of 54 and 25 of 27 at 25 candidates. The lost federated case was also lost locally.
+
+**Checked through the public address:**
+- A nonsense query returns no hits and the warning "nothing scored as relevant".
+- Reading POJK 40 Tahun 2024 returns its outline (84 groups). The document is `partly_revoked`, while its Pasal 3 is `in_force`.
+
+**What runs:**
+- **Image:** `metamorph/retrieval:afc2ab7`.
+- **Task definitions:** `metamorph-retrieval-gateway:6`, for both `retrieval-gateway` and `retrieval-gateway-dev`, with 50 candidates; and `metamorph-retrieval:6`.
+- **Index:** `2026-11-10-units`, live in `retrieval_regulation`: 577,539 chunks, 224,635 vectors, 137,123 links, 2,561 documents.
+  - The vectors came from the local build through a presigned file. The AWS live build's context was older, so none were taken from it.
+  - The 2026-11-04 tables are kept as `regulation_*_live__old` for rollback.
+
+**Watch:** a search's p95 is close to the reranker's 10 s budget. On Graviton2, or under load from more than one agent, searches fall back to fused order with `NOT_RERANKED`. The next fix would be more CPU for the gateway task.
+
+**Older builds still read `live`** in `metamorph-regulation-index versions`. Every reader takes the newest live row, so only the listing is affected.
+
 ## Deployed on 2026-11-04: links
 
 | Gate on the new index, 25 candidates | Regulation set | Market set | Federated set | A search | A `follow_links` |
@@ -178,12 +204,13 @@ Embedding on 2 Graviton vCPUs runs at about 2 units a second (measured 2026-11-0
 
 **Latency:** a search was 0.7 s at p95 before the regulation provider and the reranker. Fewer candidates trade quality for speed. So does more hardware, which the role doesn't allow (the table above).
 
-## Traces on AWS: not yet on
+## Traces on AWS: on since 2026-11-10
 
-The deployed gateway (image `4d9cb5d`) has no exporter. To send its spans to Langfuse:
-1. Build and push an image from this code. The image has the `otlp` extra already, as it installs every extra.
-2. Write the header as a SecureString, `/metamorph/retrieval/otel-headers`, with the value from [connecting-an-agent.md](connecting-an-agent.md#tracing).
-3. In the gateway's task definition, add `OTEL_EXPORTER_OTLP_ENDPOINT` to its environment, and `OTEL_EXPORTER_OTLP_HEADERS` to its `Secrets`, from that parameter.
+Both gateways send their spans to the AWS Langfuse (`https://d3n8ohhb3plpsb.cloudfront.net`), in the same project as Mira's traces, so a Mira question and its searches are one trace.
+- The retrieval stack's `TraceEndpoint` parameter is `https://d3n8ohhb3plpsb.cloudfront.net/api/public/otel`. It sets `OTEL_EXPORTER_OTLP_ENDPOINT`, and reads `OTEL_EXPORTER_OTLP_HEADERS` from the SecureString `/metamorph/retrieval/otel-headers`.
+- Since task revision 7, for both `retrieval-gateway` and `retrieval-gateway-dev`.
+- Checked by one search sent with a `traceparent`: Langfuse shows its `search_documents` retriever span, with `market`, `regulation-retrieval` and `rerank` spans under it. That Langfuse runs v4 in events-only mode, so read observations through `/api/public/v2/observations`; the older routes answer 404.
+- **To stop:** deploy the stack with `TraceEndpoint=""`, then move the dev stack to the new revision.
 
 ## Rolling back
 
