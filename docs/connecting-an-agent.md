@@ -66,6 +66,7 @@ curl -s -H "Authorization: Bearer $METAMORPH_RETRIEVAL_GATEWAY_TOKEN" "$METAMORP
 | `find_series` | Which statistics measure something; narrow with `source` (`ojk:portal`, `bi:seki`, `bps:table`) | Ranked hits of series, each naming its `industry` and `dataset_name` (`group: metric`) when the dataset has them |
 | `get_observations` | The figures of series between two periods (`2026-08`, `2026-Q2`, `2025`) | Evidence with figures, provisional marks kept |
 | `find_provision` | A citation the question names: `POJK 40/2024 Pasal 137 ayat (3)`, `Fatwa 117`, `UU 27/2022 Pasal 5` | The provision, or the regulation's card, as evidence |
+| `list_changes` | What is new or what changed recently: `{"issued_from": "2026-06-01"}`, optionally `issued_to`, `limit` and `cursor` | The regulations issued in that period, newest first: each one's card (no wording: read its ref to quote it), the day it is listed by (its promulgation, or its entry into force when that is all the index has; one with neither is never listed), and what it changes in others, one entry per kind of change and regulation changed, with the provisions named (`addresses`, null when the change is to the whole regulation) |
 | `read` | Any ref in full: a passage (with `window`), a company, a dataset, a regulation or a provision (`doc:…#pasal-5/ayat-1`) | One piece of evidence |
 | `follow_links` | What revokes, amends or implements a regulation, what it rests on and cites, which report and release passages name it, or what a passage names | Links between refs |
 

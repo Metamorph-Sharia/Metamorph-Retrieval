@@ -156,8 +156,8 @@ Before this change, AWS had 14 of 42, 52 of 54 and 25 of 27 at 25 candidates. Th
 - Reading POJK 40 Tahun 2024 returns its outline (84 groups). The document is `partly_revoked`, while its Pasal 3 is `in_force`.
 
 **What runs:**
-- **Image:** `metamorph/retrieval:afc2ab7`.
-- **Task definitions:** `metamorph-retrieval-gateway:6`, for both `retrieval-gateway` and `retrieval-gateway-dev`, with 50 candidates; and `metamorph-retrieval:6`.
+- **Image:** `metamorph/retrieval:8745a47-changes-2` since 2026-11-14: `afc2ab7` and the `list_changes` tool, which MIRA's Watch uses, built from a working tree not yet committed. The first build of it couldn't start: a source file was readable by its owner only, and the task runs as `retrieval`. The Dockerfile now makes the code readable to all.
+- **Task definitions:** `metamorph-retrieval-gateway:9`, for both `retrieval-gateway` and `retrieval-gateway-dev`, with 50 candidates; and `metamorph-retrieval:8`. To go back: `RetrievalTag=afc2ab7` on `metamorph-retrieval`, then `GatewayTask=` the revision that registers on `metamorph-retrieval-dev`.
 - **Index:** `2026-11-10-units`, live in `retrieval_regulation`: 577,539 chunks, 224,635 vectors, 137,123 links, 2,561 documents.
   - The vectors came from the local build through a presigned file. The AWS live build's context was older, so none were taken from it.
   - The 2026-11-04 tables are kept as `regulation_*_live__old` for rollback.

@@ -2,12 +2,19 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from metamorph_regulation_retrieval.adapters.provider import FIND, NO_LINKS, NO_WORDS, NOT_DATED, RegulationProvider
+from metamorph_regulation_retrieval.adapters.provider import (
+    CHANGES,
+    FIND,
+    NO_LINKS,
+    NO_WORDS,
+    NOT_DATED,
+    RegulationProvider,
+)
 from metamorph_regulation_retrieval.domain.filters import NO_FILTERS, Filters
 from metamorph_regulation_retrieval.domain.links import ORDER, LinkRow
 from metamorph_regulation_retrieval.domain.passage import Passage
 from metamorph_retrieval_contract.conformance import Samples, ToolCall, conformance_problems
-from metamorph_retrieval_contract.errors import UnknownRef, UnknownTool
+from metamorph_retrieval_contract.errors import InvalidArgument, UnknownRef, UnknownTool
 from metamorph_retrieval_contract.evidence import EmptyReason, LegalForce
 from metamorph_retrieval_contract.links import Direction, Link, LinkType
 from metamorph_retrieval_contract.refs import Ref
@@ -41,6 +48,27 @@ LINK_ROWS = [
     LinkRow("amends", "ojk:pojk:2025:2", "pasal-i", DOC, "pasal-137/ayat-3", date(2025, 6, 1), "medium"),
     LinkRow("legal_basis", DOC, None, "id:uu:2011:21", None, date(2024, 12, 20), "high"),
 ]
+
+
+# Issued documents, newest first, as the store gives them, and what they change.
+ISSUED = [
+    {"document_id": "ojk:pojk:2026:9", "kind": "regulation", "citation": "POJK 9 Tahun 2026", "title": "PERUBAHAN",
+     "issuer": "ojk", "status": "in_force", "family": "pojk", "number": "9", "year": 2026,
+     "promulgated_on": date(2026, 7, 6), "effective_on": date(2026, 10, 1), "published_at": PUBLISHED,
+     "aliases": [], "status_history": None, "outline": None},
+    {"document_id": "dsnmui:fatwa:160", "kind": "fatwa", "citation": "Fatwa 160", "title": "FATWA BARU",
+     "issuer": "dsnmui", "status": "in_force", "family": "fatwa", "number": "160", "year": 2026,
+     "promulgated_on": None, "effective_on": date(2026, 5, 2), "published_at": PUBLISHED,
+     "aliases": [], "status_history": None, "outline": None},
+]
+MADE = [
+    LinkRow("amends", "ojk:pojk:2026:9", "pasal-i", DOC, "pasal-137/ayat-3", date(2026, 10, 1), "high"),
+    LinkRow("amends", "ojk:pojk:2026:9", "pasal-i", DOC, "pasal-140", date(2026, 10, 1), "high"),
+    LinkRow("revokes", "ojk:pojk:2026:9", None, "ojk:pojk:2016:77", None, date(2026, 10, 1), "high"),
+    LinkRow("revokes", "ojk:pojk:2026:9", None, "ojk:pojk:2099:1", "pasal-2", None, "medium"),
+]
+TARGETS = {DOC: {"citation": "POJK 40 Tahun 2024", "family": "pojk", "number": "40", "year": 2024},
+           "ojk:pojk:2016:77": {"citation": "POJK 77/POJK.01/2016", "family": "pojk", "number": "77", "year": 2016}}
 
 
 class FakeStore:
@@ -93,6 +121,14 @@ class FakeStore:
             "effective_on": None, "published_at": PUBLISHED, "aliases": ["POJK 40/2024"],
         }
 
+    def issued(self, since, until, *, limit, offset):
+        self.asked_issued = (since, until, limit, offset)
+        dated = [document for document in ISSUED if (document["promulgated_on"] or document["effective_on"]) >= since]
+        return dated[offset:offset + limit]
+
+    def changes_made(self, document_ids):
+        return [(row, TARGETS.get(row.to_document)) for row in MADE if row.from_document in document_ids]
+
     def kinds(self):
         return frozenset(passage.doc_kind for passage in PASSAGES)
 
@@ -113,7 +149,8 @@ SAMPLES = Samples(
     refs=(Ref.parse(f"doc:{DOC}#pasal-137/ayat-3"), Ref.parse(f"doc:{DOC}#pasal-137/ayat-4")),
     unknown=Ref.parse("doc:ojk:pojk:2099:1"),
     query="batas maksimum pemberian pendanaan",
-    tool_calls=(ToolCall(FIND, {"citation": "POJK 40/2024 Pasal 137 ayat (3)"}),),
+    tool_calls=(ToolCall(FIND, {"citation": "POJK 40/2024 Pasal 137 ayat (3)"}),
+                ToolCall(CHANGES, {"issued_from": "2026-01-01"})),
     linked=Ref.parse(f"doc:{DOC}"),
 )
 
@@ -128,7 +165,7 @@ def test_it_owns_doc_refs_and_offers_exact_lookup() -> None:
     assert manifest.namespaces == frozenset({"doc"})
     assert manifest.kinds == frozenset({"regulation"})  # what the index holds, not every kind there is
     assert manifest.links is True
-    assert [tool.name for tool in manifest.tools] == [FIND]
+    assert [tool.name for tool in manifest.tools] == [FIND, CHANGES]
 
 
 def test_search_returns_ranked_evidence() -> None:
@@ -318,3 +355,48 @@ def test_a_document_shows_its_status_history() -> None:
 
 def test_every_link_type_is_ordered_but_the_markets() -> None:
     assert {*ORDER, LinkType.NAMES.value} == {link_type.value for link_type in LinkType}
+
+
+def test_list_changes_gives_each_issued_document_with_what_it_changes() -> None:
+    output = provider().call(CHANGES, {"issued_from": "2026-01-01"})
+
+    first, second = output["items"]
+    assert first["evidence"]["ref"] == "doc:ojk:pojk:2026:9"
+    assert first["evidence"]["body"] is None  # a card: read the ref to quote it
+    assert first["issued_on"] == "2026-07-06"
+    assert first["changes"] == [
+        {"type": "amends", "target": f"doc:{DOC}", "citation": "POJK 40 Tahun 2024",
+         "addresses": ["pasal-137/ayat-3", "pasal-140"], "effective_on": "2026-10-01"},
+        {"type": "revokes", "target": "doc:ojk:pojk:2016:77", "citation": "POJK 77/POJK.01/2016",
+         "addresses": None, "effective_on": "2026-10-01"},  # the whole document
+        {"type": "revokes", "target": "doc:ojk:pojk:2099:1", "citation": "ojk:pojk:2099:1",  # not in the index
+         "addresses": ["pasal-2"], "effective_on": None},
+    ]
+    assert second["issued_on"] == "2026-05-02"  # no promulgation date: dated by when it took effect
+    assert second["changes"] == []
+    assert output["cursor"] is None
+
+
+def test_list_changes_pages_with_a_cursor() -> None:
+    store = FakeStore()
+    first = provider(store).call(CHANGES, {"issued_from": "2026-01-01", "limit": 1})
+    following = provider(store).call(CHANGES, {"issued_from": "2026-01-01", "limit": 1, "cursor": first["cursor"]})
+
+    assert [item["evidence"]["ref"] for item in first["items"]] == ["doc:ojk:pojk:2026:9"]
+    assert [item["evidence"]["ref"] for item in following["items"]] == ["doc:dsnmui:fatwa:160"]
+    assert following["cursor"] is None
+
+
+def test_list_changes_of_a_quiet_period_is_empty() -> None:
+    output = provider().call(CHANGES, {"issued_from": "2027-01-01"})
+
+    assert output["items"] == [] and output["empty_reason"] == "no_match"
+
+
+@pytest.mark.parametrize("arguments, said", [
+    ({"issued_from": "2026-13-01"}, "issued_from '2026-13-01' is not a day"),
+    ({"issued_from": "2026-06-01", "issued_to": "2026-05-01"}, "issued_to 2026-05-01 is before issued_from"),
+])
+def test_list_changes_says_what_is_wrong_with_a_period(arguments, said) -> None:
+    with pytest.raises(InvalidArgument, match=said):
+        provider().call(CHANGES, arguments)

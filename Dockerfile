@@ -47,7 +47,8 @@ COPY packages ./packages
 RUN uv sync --frozen --no-dev --all-packages --all-extras
 COPY eval ./eval
 COPY scripts ./scripts
-RUN mkdir var && chown retrieval var
+# The task runs as retrieval, so the code must be readable whatever modes the files had where the image was built.
+RUN chmod -R a+rX packages eval scripts && mkdir var && chown retrieval var
 
 USER retrieval
 CMD ["metamorph-gateway", "--help"]

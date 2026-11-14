@@ -312,3 +312,24 @@ def test_a_provision_reads_its_own_status_where_the_index_holds_one(store: Postg
     assert own.read("ojk:pojk:2024:40", "pasal-137/ayat-3").status == "amended"
     assert own.read("ojk:pojk:2024:40", "pasal-137/ayat-4").status == "in_force"  # none of its own: its document's
     assert bare.read("ojk:pojk:2024:40", "pasal-137/ayat-3").status == "in_force"  # an index built before
+
+
+def test_issued_lists_documents_by_the_day_they_were_issued_newest_first(store: PostgresStore) -> None:
+    # The seed has no promulgation dates, so each is dated by when it took effect; the fatwa has neither.
+    assert [d["document_id"] for d in store.issued(date(2022, 1, 1), None, limit=10, offset=0)] == [
+        "ojk:pojk:2024:40", "ojk:pojk:2022:10"]
+    assert [d["document_id"] for d in store.issued(date(2022, 1, 1), date(2024, 12, 31), limit=10, offset=0)] == [
+        "ojk:pojk:2022:10"]
+    assert [d["document_id"] for d in store.issued(date(2022, 1, 1), None, limit=1, offset=1)] == ["ojk:pojk:2022:10"]
+
+
+def test_changes_made_are_what_a_document_changes_in_others(store: PostgresStore) -> None:
+    made = store.changes_made(["ojk:pojk:2024:40", "ojk:pojk:2025:1", "ojk:pojk:2026:9"])
+
+    assert [(row.from_document, row.type, row.to_document, row.to_address) for row, _ in made] == [
+        ("ojk:pojk:2024:40", "revokes", "ojk:pojk:2022:10", None),  # its citations of POJK 10/2022 aren't changes
+        ("ojk:pojk:2025:1", "amends", "ojk:pojk:2022:10", "pasal-5/ayat-1"),
+        ("ojk:pojk:2026:9", "revokes", "ojk:pojk:2024:40", None),
+    ]
+    assert made[0][1] == {"citation": "ojk:pojk:2022:10", "family": None, "number": None, "year": None}
+    assert store.changes_made([]) == []

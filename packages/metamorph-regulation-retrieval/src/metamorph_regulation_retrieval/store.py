@@ -130,6 +130,28 @@ order by type = any(%(changing)s) and to_document = %(document)s desc, array_pos
 limit %(limit)s offset %(offset)s
 """
 
+# What `list_changes` lists: documents by the day they were issued, newest first. A document without a promulgation
+# date is dated by when it took effect; one with neither can't be placed in a period, so it isn't listed.
+ISSUED_ON = "coalesce(m.promulgated_on, m.effective_on)"
+ISSUED = """
+select document_id, kind, citation, title, issuer, status, family, number, year,
+       promulgated_on, effective_on, published_at, aliases, null::jsonb, null::jsonb
+from {meta} m
+where {issued_on} >= %(since)s and (%(until)s::date is null or {issued_on} <= %(until)s)
+order by {issued_on} desc, document_id
+limit %(limit)s offset %(offset)s
+"""
+
+# What those documents change in others, with the citation parts of what they change where the index holds it.
+CHANGES_MADE = """
+select l.type, l.from_document, l.from_address, l.to_document, l.to_address, l.effective_on, l.confidence,
+       t.citation, t.family, t.number, t.year
+from {links} l
+left join {meta} t on t.document_id = l.to_document
+where l.from_document = any(%(documents)s) and l.type = any(%(changing)s) and l.from_document <> l.to_document
+order by l.from_document, array_position(%(order)s::text[], l.type), l.to_document, l.to_address nulls first
+"""
+
 OTHER_DOCUMENTS = "from_document <> to_document"
 WITHIN = "({end} = %(address)s or left({end}, length(%(address)s) + 1) = %(address)s || '/')"
 HOLDING = ("(type = any(%(changing)s) and (to_address is null or left(%(address)s, length(to_address) + 1) "
@@ -212,6 +234,24 @@ class PostgresStore:
                                         "types": list(types), "order": list(ORDER), "limit": limit,
                                         "offset": offset}).fetchall()
         return [LinkRow(*row) for row in rows]
+
+    def issued(self, since, until, *, limit: int, offset: int) -> list[dict[str, Any]]:
+        """Documents issued from `since` to `until` (None: no end), newest first, as `document` gives them."""
+        query = ISSUED.format(meta=self.meta_table, issued_on=ISSUED_ON)
+        with self._connect() as conn:
+            rows = conn.execute(query, {"since": since, "until": until, "limit": limit, "offset": offset}).fetchall()
+        return [dict(zip(DOCUMENT_COLUMNS, row, strict=True)) for row in rows]
+
+    def changes_made(self, document_ids: Sequence[str]) -> list[tuple[LinkRow, dict[str, Any] | None]]:
+        """What these documents amend, replace or revoke in others: each link, with the citation parts of what it
+        changes (None when the index doesn't hold that document)."""
+        if not document_ids or not self.holds_links():
+            return []
+        query = CHANGES_MADE.format(links=links_table(self.chunk_table), meta=self.meta_table)
+        with self._connect() as conn:
+            rows = conn.execute(query, {"documents": list(document_ids), "changing": list(CHANGING),
+                                        "order": list(ORDER)}).fetchall()
+        return [(LinkRow(*row[:7]), _citation_parts(row[7:]) if row[7:] != (None,) * 4 else None) for row in rows]
 
     def dates_revocations(self) -> bool:
         """Whether the index knows when each revoked document was revoked (indexes built since 2026-11-03)."""
@@ -319,6 +359,10 @@ def _passage(row: Sequence[Any]) -> Passage:
         year=row[16],
         doc_citation=row[17],
     )
+
+
+def _citation_parts(row: Sequence[Any]) -> dict[str, Any]:
+    return dict(zip(("citation", "family", "number", "year"), row, strict=True))
 
 
 def _table(name: str) -> str:

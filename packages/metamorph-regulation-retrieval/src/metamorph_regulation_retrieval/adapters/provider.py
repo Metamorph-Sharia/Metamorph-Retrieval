@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from datetime import date
 from typing import Any
 
 from metamorph_regulation_retrieval.domain.citations import parse_citation
@@ -23,10 +24,10 @@ from metamorph_regulation_retrieval.domain.evidence import (
 )
 from metamorph_regulation_retrieval.domain.filters import Filters
 from metamorph_regulation_retrieval.domain.fusion import reciprocal_rank_fusion
-from metamorph_regulation_retrieval.domain.legal import legal_force_of, provision_label
+from metamorph_regulation_retrieval.domain.legal import document_citation, legal_force_of, provision_label
 from metamorph_regulation_retrieval.domain.links import CONFIDENCE, LinkRow
 from metamorph_regulation_retrieval.domain.passage import Passage
-from metamorph_regulation_retrieval.domain.refs import NAMESPACE, RefError
+from metamorph_regulation_retrieval.domain.refs import NAMESPACE, RefError, make_ref
 from metamorph_retrieval_contract import codec
 from metamorph_retrieval_contract.errors import (
     InvalidArgument,
@@ -38,13 +39,14 @@ from metamorph_retrieval_contract.evidence import EmptyReason, Evidence, Hit, Pa
 from metamorph_retrieval_contract.links import Direction, Link, LinkType
 from metamorph_retrieval_contract.provider import JSON, Manifest, ToolSpec
 from metamorph_retrieval_contract.refs import Ref
-from metamorph_retrieval_contract.requests import LinksRequest, SearchRequest, Sort
+from metamorph_retrieval_contract.requests import DEFAULT_LIMIT, MAX_LIMIT, LinksRequest, SearchRequest, Sort
 
 NAME = "regulation-retrieval"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 INDEX_VERSION = "METAMORPH_REGULATION_INDEX_VERSION"
 DEFAULT_INDEX_VERSION = "regulation-index"
 FIND = "find_provision"
+CHANGES = "list_changes"
 KINDS = ("law", "regulation", "implementing_rule", "fatwa", "guideline", "circular", "explanatory")
 MAX_DEPTH = 50  # how far down the fused ranking a cursor can page
 # A hit shows at most this much of its unit, about a market passage's length, so a page of long units (an SEOJK part,
@@ -77,6 +79,60 @@ FIND_TOOL = ToolSpec(
 )
 
 
+CHANGES_TOOL = ToolSpec(
+    name=CHANGES,
+    version="0.1",
+    description=(
+        "List the regulations and fatwas issued in a period, newest first, each with what it amends, replaces or "
+        "revokes. Use this for what is new or what changed recently, or to see whether anything changed since a "
+        "date; for a topic, use search_documents. A document is dated by its promulgation, or by when it took "
+        "effect when that is all the index knows; one with neither date is not listed. Each item is a card without "
+        "wording: read its ref before quoting it."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "issued_from": {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$",
+                            "description": "The first day, as YYYY-MM-DD"},
+            "issued_to": {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$",
+                          "description": "The last day, as YYYY-MM-DD; leave it out for no end"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": MAX_LIMIT, "default": DEFAULT_LIMIT},
+            "cursor": {"type": "string", "description": "The cursor of the page before, for the next"},
+        },
+        "required": ["issued_from"],
+        "additionalProperties": False,
+    },
+    output_schema={
+        "type": "object",
+        "required": ["items", "cursor", "empty_reason", "warnings"],
+        "properties": {
+            "items": {"type": "array", "items": {
+                "type": "object",
+                "required": ["evidence", "issued_on", "changes"],
+                "properties": {
+                    "evidence": {"type": "object"},
+                    "issued_on": {"type": "string"},
+                    "changes": {"type": "array", "items": {
+                        "type": "object",
+                        "required": ["type", "target", "citation", "addresses", "effective_on"],
+                        "properties": {
+                            "type": {"type": "string"},
+                            "target": {"type": "string"},
+                            "citation": {"type": "string"},
+                            "addresses": {"type": ["array", "null"], "items": {"type": "string"}},
+                            "effective_on": {"type": ["string", "null"]},
+                        },
+                    }},
+                },
+            }},
+            "cursor": {"type": ["string", "null"]},
+            "empty_reason": {"type": ["string", "null"]},
+            "warnings": {"type": "array", "items": {"type": "string"}},
+        },
+    },
+)
+
+
 class RegulationProvider:
     """Search and read over the regulation index. The store and embedder are ports."""
 
@@ -95,7 +151,7 @@ class RegulationProvider:
             namespaces=frozenset({"doc"}),
             kinds=self.store.kinds(),  # those held: narrowing to another would only empty the page
             links=True,
-            tools=(FIND_TOOL,),
+            tools=(FIND_TOOL, CHANGES_TOOL),
             index_version=self.index_version,
             data_as_of=self.store.published_at(),
         )
@@ -189,8 +245,10 @@ class RegulationProvider:
         return Page(links, cursor=str(offset + request.limit) if len(rows) > request.limit else None)
 
     def call(self, tool: str, arguments: Mapping[str, Any]) -> JSON:
+        if tool == CHANGES:
+            return self._list_changes(arguments)
         if tool != FIND:
-            raise UnknownTool(f"{NAME} has no tool {tool!r}; it offers {FIND}")
+            raise UnknownTool(f"{NAME} has no tool {tool!r}; it offers {FIND} and {CHANGES}")
         raw = str(arguments.get("citation") or "").strip()
         try:
             citation = parse_citation(raw)
@@ -210,6 +268,31 @@ class RegulationProvider:
                 f"{raw}: {citation.document_id} is published but {provision_label(citation.address)} is not"
             )
         return page([evidence(passage, provider=self.name, index_version=self.index_version)])
+
+    def _list_changes(self, arguments: Mapping[str, Any]) -> JSON:
+        since = _day(arguments, "issued_from")
+        until = _day(arguments, "issued_to") if arguments.get("issued_to") else None
+        if until and until < since:
+            raise InvalidArgument(f"issued_to {until} is before issued_from {since}")
+        limit, offset = int(arguments.get("limit") or DEFAULT_LIMIT), _offset(arguments.get("cursor"))
+        try:
+            documents = self.store.issued(since, until, limit=limit + 1, offset=offset)
+            shown = documents[:limit]
+            made = self.store.changes_made([document["document_id"] for document in shown])
+        except Exception as error:  # noqa: BLE001
+            raise ProviderUnavailable(f"{NAME} could not list changes: {type(error).__name__}") from error
+        warnings = () if self.store.holds_links() else (NO_LINKS,)
+        if not shown:
+            return page([], warnings=warnings)
+        changes = _grouped(made)
+        items = [{"evidence": self._card(document), "issued_on": (document["promulgated_on"]
+                                                                  or document["effective_on"]).isoformat(),
+                  "changes": changes.get(document["document_id"], [])} for document in shown]
+        return page(items, warnings=warnings, cursor=offset + limit if len(documents) > limit else None)
+
+    def _card(self, document: dict[str, Any]) -> JSON:
+        whole = document_evidence(document, provider=self.name, index_version=self.index_version)
+        return codec.to_dict(codec.evidence_from_dict(whole).card())
 
     # -- helpers ----------------------------------------------------------
 
@@ -262,3 +345,35 @@ def _offset(cursor: str | None) -> int:
     if not cursor.isdigit():
         raise InvalidArgument(f"cursor {cursor!r} is not one this provider gave; leave it out for the first page")
     return int(cursor)
+
+
+def _day(arguments: Mapping[str, Any], name: str) -> date:
+    try:
+        return date.fromisoformat(str(arguments.get(name)))
+    except ValueError:
+        raise InvalidArgument(f"{name} {arguments.get(name)!r} is not a day; write it as YYYY-MM-DD") from None
+
+
+def _grouped(made) -> dict[str, list[JSON]]:
+    """Each document's changes, one per kind of change and document changed. `addresses` names the provisions
+    changed; null when the change is to the whole document. A day each link took effect: the earliest of them."""
+    grouped: dict[tuple[str, str, str], JSON] = {}
+    for row, target in made:
+        key = (row.from_document, row.type, row.to_document)
+        change = grouped.setdefault(key, {
+            "type": row.type, "target": make_ref(row.to_document),
+            "citation": (document_citation(target["citation"], target["family"], target["number"], target["year"])
+                         if target else None) or row.to_document,
+            "addresses": [], "effective_on": None,
+        })
+        if row.to_address is None:
+            change["addresses"] = None
+        elif change["addresses"] is not None and row.to_address not in change["addresses"]:
+            change["addresses"].append(row.to_address)
+        day = row.effective_on.isoformat() if row.effective_on else None
+        if day and (change["effective_on"] is None or day < change["effective_on"]):
+            change["effective_on"] = day
+    by_document: dict[str, list[JSON]] = {}
+    for (document, _, _), change in grouped.items():
+        by_document.setdefault(document, []).append(change)
+    return by_document
