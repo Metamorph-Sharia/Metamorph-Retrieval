@@ -94,9 +94,19 @@ where address is not null
 
 # A document's outline: its headings and the provisions directly under it. The build groups them (domain.outline).
 OUTLINE = """
-select p.document_id, p.address, p.kind, p.parent_address, p.ordinal, p.depth, p.heading_path, p.heading
+select p.document_id, p.address, p.kind, p.parent_address, p.ordinal, p.depth, p.heading_path, p.heading,
+       coalesce(p.char_end - p.char_start, length(p.body), 0)
 from published.provision p
 where p.document_id <> all(%s)
+order by p.document_id, p.ordinal
+"""
+
+# The same, for the documents a build already holds (refresh_outlines).
+OUTLINE_OF = """
+select p.document_id, p.address, p.kind, p.parent_address, p.ordinal, p.depth, p.heading_path, p.heading,
+       coalesce(p.char_end - p.char_start, length(p.body), 0)
+from published.provision p
+where p.document_id = any(%s)
 order by p.document_id, p.ordinal
 """
 

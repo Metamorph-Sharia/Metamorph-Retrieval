@@ -8,8 +8,8 @@ DOC = "ojk:pojk:2024:40"
 
 
 def unit(address: str, *, kind: str = "pasal", parent: str | None = None, ordinal: int = 0, depth: int = 0,
-         path: tuple[str, ...] = ()) -> OutlineProvision:
-    return OutlineProvision(address, kind, parent, ordinal, depth, path)
+         path: tuple[str, ...] = (), length: int = 0) -> OutlineProvision:
+    return OutlineProvision(address, kind, parent, ordinal, depth, path, length=length)
 
 
 def card(output: list[dict]) -> dict:
@@ -65,6 +65,89 @@ def test_a_fatwa_like_document_has_one_group_without_headings() -> None:
 
     assert document_outline(rows) == [
         {"heading": None, "units": ["menimbang", "mengingat", "memutuskan", "diktum-pertama", "diktum-kedua"]}
+    ]
+
+
+def test_a_regulation_without_chapters_has_its_articles_under_the_decision() -> None:
+    rows = [
+        unit("menimbang", kind="menimbang", ordinal=0, path=("Menimbang",)),
+        unit("mengingat", kind="mengingat", ordinal=1, path=("Mengingat",)),
+        unit("memutuskan", kind="memutuskan", ordinal=2, path=("MEMUTUSKAN",)),
+        unit("pasal-1", parent="memutuskan", ordinal=3, depth=1, path=("MEMUTUSKAN", "Pasal 1")),
+        unit("pasal-1/ayat-1", kind="ayat", parent="pasal-1", ordinal=4, depth=2,
+             path=("MEMUTUSKAN", "Pasal 1", "(1)")),
+        unit("pasal-2", parent="memutuskan", ordinal=5, depth=1, path=("MEMUTUSKAN", "Pasal 2")),
+        unit("pengesahan", kind="pengesahan", ordinal=6, path=("Pengesahan",)),
+    ]
+
+    assert document_outline(rows) == [
+        {"heading": None, "units": ["menimbang", "mengingat"]},
+        {"heading": "MEMUTUSKAN", "units": ["pasal-1", "pasal-2"]},
+        {"heading": None, "units": ["pengesahan"]},
+    ]
+
+
+def test_an_amendment_reads_as_its_pasal_i_and_pasal_ii_with_what_pasal_i_quotes_inside() -> None:
+    rows = [
+        unit("menimbang", kind="menimbang", ordinal=0, path=("Menimbang",)),
+        unit("memutuskan", kind="memutuskan", ordinal=1, path=("MEMUTUSKAN",)),
+        unit("pasal-i", parent="memutuskan", ordinal=2, depth=1, path=("MEMUTUSKAN", "Pasal I")),
+        unit("pasal-i/pasal-13", parent="pasal-i", ordinal=3, depth=2, path=("MEMUTUSKAN", "Pasal I", "Pasal 13")),
+        unit("pasal-i/pasal-13/ayat-2", kind="ayat", parent="pasal-i/pasal-13", ordinal=4, depth=3,
+             path=("MEMUTUSKAN", "Pasal I", "Pasal 13", "(2)")),
+        unit("pasal-ii", parent="memutuskan", ordinal=5, depth=1, path=("MEMUTUSKAN", "Pasal II")),
+        unit("penjelasan", kind="penjelasan", ordinal=6, path=("PENJELASAN",)),
+    ]
+
+    assert document_outline(rows) == [
+        {"heading": None, "units": ["menimbang"]},
+        {"heading": "MEMUTUSKAN", "units": ["pasal-i", "pasal-ii"]},
+        {"heading": None, "units": ["penjelasan"]},
+    ]
+
+
+def test_an_amendment_too_long_to_read_at_once_reads_as_the_articles_it_changes() -> None:
+    rows = [
+        unit("memutuskan", kind="memutuskan", ordinal=0, path=("MEMUTUSKAN",), length=200_000),
+        unit("pasal-i", parent="memutuskan", ordinal=1, depth=1, path=("MEMUTUSKAN", "Pasal I"), length=196_000),
+        unit("pasal-i/pasal-4", parent="pasal-i", ordinal=2, depth=2, path=("MEMUTUSKAN", "Pasal I", "Pasal 4"),
+             length=3_000),
+        unit("pasal-i/pasal-4/ayat-1", kind="ayat", parent="pasal-i/pasal-4", ordinal=3, depth=3, length=900),
+        unit("pasal-i/pasal-13", parent="pasal-i", ordinal=4, depth=2, path=("MEMUTUSKAN", "Pasal I", "Pasal 13"),
+             length=2_000),
+        unit("pasal-ii", parent="memutuskan", ordinal=5, depth=1, path=("MEMUTUSKAN", "Pasal II"), length=5_000),
+    ]
+
+    assert document_outline(rows) == [
+        {"heading": "MEMUTUSKAN > Pasal I", "units": ["pasal-i/pasal-4", "pasal-i/pasal-13"]},
+        {"heading": "MEMUTUSKAN", "units": ["pasal-ii"]},
+    ]
+
+
+def test_nothing_inside_a_unit_is_looked_at_even_when_its_structure_is_odd() -> None:
+    rows = [
+        unit("memutuskan", kind="memutuskan", ordinal=0, path=("MEMUTUSKAN",)),
+        unit("pasal-i", parent="memutuskan", ordinal=1, depth=1, path=("MEMUTUSKAN", "Pasal I"), length=8_000),
+        unit("pasal-i/pasal-52a", parent="pasal-i", ordinal=2, depth=2, path=("MEMUTUSKAN", "Pasal I", "Pasal 52A")),
+        # the parser filed another article's ayat under Pasal 52A: inside a unit, so the outline doesn't see it
+        unit("pasal-i/pasal-4/ayat-1", kind="ayat", parent="pasal-i/pasal-52a", ordinal=3, depth=3),
+    ]
+
+    assert document_outline(rows) == [{"heading": "MEMUTUSKAN", "units": ["pasal-i"]}]
+
+
+def test_what_the_index_cant_read_is_a_heading_over_what_it_can_or_left_out() -> None:
+    rows = [
+        unit("pasal-1", ordinal=0, path=("Pasal 1",)),
+        unit("pengesahan", kind="pengesahan", ordinal=1, path=("Pengesahan",)),
+        unit("penjelasan", kind="penjelasan", ordinal=2, path=("PENJELASAN",)),
+        unit("penjelasan/umum", kind="umum", parent="penjelasan", ordinal=3, depth=1, path=("PENJELASAN", "Umum")),
+        unit("penjelasan/pasal-1", parent="penjelasan", ordinal=4, depth=1, path=("PENJELASAN", "Pasal 1")),
+    ]
+
+    assert document_outline(rows, readable={"pasal-1", "penjelasan/umum", "penjelasan/pasal-1"}) == [
+        {"heading": None, "units": ["pasal-1"]},
+        {"heading": "PENJELASAN", "units": ["penjelasan/umum", "penjelasan/pasal-1"]},
     ]
 
 

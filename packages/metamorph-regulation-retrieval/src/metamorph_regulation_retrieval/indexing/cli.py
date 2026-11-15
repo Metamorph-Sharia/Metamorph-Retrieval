@@ -7,6 +7,7 @@
     metamorph-regulation-index tables --snapshot 2026-11-03   the settings that point the provider at a build
     metamorph-regulation-index activate --snapshot 2026-11-03
     metamorph-regulation-index versions
+    metamorph-regulation-index refresh-outlines             the live build's outlines, after a change to their rule
 
 Exit codes: 0 ok, anything else a failure. `scripts/refresh-regulation-index.sh` builds, judges the build against the
 live one with metamorph-eval (as the market's refresh does) and activates it only if it is no worse.
@@ -68,6 +69,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("versions", help="list the builds recorded")
     commands.add_parser("fingerprint", help="print the source fingerprint")
     commands.add_parser("current", help="exit 0 when the live build already matches the source")
+    refresh = commands.add_parser("refresh-outlines",
+                                  help="recompute a build's outlines from the published structure, in place")
+    refresh.add_argument("--snapshot", default="", help="a build's; the live one when left out")
 
     restore = commands.add_parser("restore", help="restore a pg_dump into the index database")
     restore.add_argument("--url", required=True)
@@ -89,6 +93,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "current":
         return _current()
+    if args.command == "refresh-outlines":
+        tables = Tables.for_snapshot(args.snapshot) if args.snapshot else LIVE
+        print(json.dumps(builder.refresh_outlines(tables)))
+        return 0
     if args.command == "restore":
         return _restore(args)
     return 2

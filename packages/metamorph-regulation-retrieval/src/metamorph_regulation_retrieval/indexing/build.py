@@ -27,6 +27,7 @@ from .chunks import (
     LINKS,
     META_DDL,
     OUTLINE,
+    OUTLINE_OF,
     PROVISIONS,
     STEMS_DDL,
     Chunk,
@@ -142,8 +143,9 @@ def build(snapshot: str, tables: Tables, *, limit: int | None = None) -> int:
 def build_metadata(tables: Tables) -> int:
     with psycopg.connect(published_url()) as source:
         rows = source.execute(DOCUMENTS, (excluded_documents(),)).fetchall()
-        outline = outlines(source.execute(OUTLINE, (excluded_documents(),)))
+        provisions = source.execute(OUTLINE, (excluded_documents(),)).fetchall()
     with psycopg.connect(index_url()) as target:
+        outline = outlines(provisions, readable_addresses(target, tables))
         with target.cursor() as cursor:
             cursor.execute(f"drop table if exists {table_name(tables.meta)}")
             cursor.execute(META_DDL.format(table=table_name(tables.meta)))
@@ -156,6 +158,32 @@ def build_metadata(tables: Tables) -> int:
     return len(rows)
 
 
+def refresh_outlines(tables: Tables) -> dict[str, int]:
+    """Recomputes the outline of every document a build holds from the published structure, in place, in one
+    transaction: for a change to the outline rule, which needs no new chunks or vectors. Documents published since the
+    build stay out, as a build leaves them; one whose structure changed since gets its current outline, and the reader
+    leaves out a unit the build doesn't hold."""
+    with psycopg.connect(index_url()) as target:
+        held = [row[0] for row in target.execute(f"select document_id from {tables.meta}")]
+        readable = readable_addresses(target, tables)
+    with psycopg.connect(published_url()) as source:
+        outline = outlines(source.execute(OUTLINE_OF, (held,)), readable)
+    rows = [(json.dumps(outline[document_id], ensure_ascii=False) if document_id in outline else None, document_id)
+            for document_id in held]
+    with psycopg.connect(index_url()) as target:
+        with target.cursor() as cursor:
+            cursor.execute("create temporary table refreshed (outline jsonb, document_id text) on commit drop")
+            with cursor.copy("copy refreshed (outline, document_id) from stdin") as copy:
+                for row in rows:
+                    copy.write_row(row)
+            cursor.execute(f"update {tables.meta} m set outline = r.outline from refreshed r "
+                           f"where m.document_id = r.document_id and m.outline is distinct from r.outline")
+            changed = cursor.rowcount
+        target.commit()
+    print(f"outlines: {changed:,} of {len(held):,} documents changed", flush=True)
+    return {"documents": len(held), "changed": changed}
+
+
 def events_by_document(rows: Iterable[tuple[Any, ...]]) -> dict[str, dict[str, str]]:
     """Each document's address-level events, as the latest status per address."""
     by_document: dict[str, list[tuple[str, str, Any]]] = defaultdict(list)
@@ -164,13 +192,24 @@ def events_by_document(rows: Iterable[tuple[Any, ...]]) -> dict[str, dict[str, s
     return {document_id: latest_events(events) for document_id, events in by_document.items()}
 
 
-def outlines(provisions: Iterable[tuple[Any, ...]]) -> dict[str, list[dict[str, Any]]]:
-    """Each document's outline, from its provisions as OUTLINE selects them."""
+def readable_addresses(connection: psycopg.Connection, tables: Tables) -> dict[str, set[str]]:
+    """What the index can read of each document: the addresses of its chunks, which is what `read` looks up."""
+    readable: dict[str, set[str]] = defaultdict(set)
+    for document_id, address in connection.execute(f"select document_id, address from {tables.chunks}"):
+        readable[document_id].add(address)
+    return readable
+
+
+def outlines(provisions: Iterable[tuple[Any, ...]],
+             readable: dict[str, set[str]] | None = None) -> dict[str, list[dict[str, Any]]]:
+    """Each document's outline, from its provisions as OUTLINE selects them, and what the index can read of it."""
     by_document: dict[str, list[OutlineProvision]] = defaultdict(list)
-    for document_id, address, kind, parent, ordinal, depth, path, title in provisions:
+    for document_id, address, kind, parent, ordinal, depth, path, title, *length in provisions:
+        size = int(length[0] or 0) if length else 0
         by_document[document_id].append(OutlineProvision(address, kind, parent, ordinal or 0, depth or 0,
-                                                         tuple(path or ()), title))
-    return {document_id: document_outline(rows) for document_id, rows in by_document.items()}
+                                                         tuple(path or ()), title, size))
+    return {document_id: document_outline(rows, None if readable is None else readable.get(document_id, set()))
+            for document_id, rows in by_document.items()}
 
 
 def build_links(tables: Tables) -> int:
