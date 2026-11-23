@@ -13,6 +13,8 @@ The retrieval layer of the market entry platform. It gives an answering agent ev
 | [`metamorph-retrieval-gateway`](docs/connecting-an-agent.md) | The providers as one: routing, time budgets, citations for what records name, a search across providers fused by reciprocal rank, MCP and HTTP, the call log and traces (`metamorph-gateway`) | 0.1 (M3, fused search M5); merging several providers' links waits for a second provider that links |
 | `metamorph-regulation-retrieval` | The regulatory provider (`doc:` search, read, links, `find_provision`, `list_changes`) and the index it serves: chunks, document metadata, bge-m3 vectors with their HNSW graph, a word index with the corpus's own common stems, the judge that guards a swap, and `scripts/refresh-regulation-index.sh`. Every provision can be read; search covers the platform's retrieval units (`provision_unit`), by words and meaning fused, and applies `kinds`, `issuers`, `documents`, `legal_force` and `in_force_on` while it finds candidates. It replaced the M3 stand-in, which read `doc:` refs straight from `published` | 0.1 |
 
+See the [Retrieval service levels](docs/service-levels.md) for search, exact reads, and index freshness.
+
 ## Develop
 
 ```sh
